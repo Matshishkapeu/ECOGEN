@@ -1,0 +1,34 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<CI>
+    <!-- LISTE DES DOMAINES GEOMETRIQUES  -->
+    <domainesPhysiques> 
+        <domaine nom="base" etat="chambreBP" type="DomaineComplet"/>
+        <domaine nom="HP"  etat="chambreHP" type="demiEspace">
+            <donneesDemiEspace axe="x" origine="0.4" direction="negatif"/>
+        </domaine>
+    </domainesPhysiques>    
+
+    <!-- LISTE DES CONDITIONS AUX LIMITES -->
+    <conditionsLimites>
+        <condLim nom="CLXm" type="abs" numero="1" />
+        <condLim nom="CLXp" type="abs" numero="2" />
+    </conditionsLimites>
+    
+    <!--  LISTE DES ETATS UTILISES  -->
+    <etat nom="chambreBP">
+        <materiau type="MelangeBinaireLiqVap" EOSLiq="SG_eauLiq.xml" EOSVap="GP_eauVap.xml">
+            <donneesMelangeBinaireLiqVap alphaLiq="0.02" pression="1.e5">
+                <vitesse x="0." y="0." z="0."/>
+            </donneesMelangeBinaireLiqVap>
+        </materiau>
+    </etat>
+
+    <etat nom="chambreHP">
+        <materiau type="MelangeBinaireLiqVap" EOSLiq="SG_eauLiq.xml" EOSVap="GP_eauVap.xml">
+            <donneesMelangeBinaireLiqVap alphaLiq="0.5" pression="2.e6">
+                <vitesse x="0." y="0." z="0."/>
+            </donneesMelangeBinaireLiqVap>
+        </materiau>
+    </etat>
+
+</CI>

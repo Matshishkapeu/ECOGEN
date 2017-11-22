@@ -1,0 +1,46 @@
+-----------------------------------------------------
+Exemple type de fichier maillage minimal en version 5
+-----------------------------------------------------
+
+<?xml version="1.0" encoding="UTF-8" standalone = "yes"?>
+<maillage>
+	<type structure="cartesien"/>
+	<maillageCartesien>
+		<dimensions x="1.e-1" y="5.e-2" z="1."/>
+		<nombreMailles x="50" y ="25" z="1"/>
+	</maillageCartesien>
+</maillage>
+
+----------------------------------
+Parametres de maillage OBLIGATOIRES
+----------------------------------
+
+1) Type structure de base
+*************************
+Le type de structure peut etre : cartesien ou nonStructure
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<type structure="cartesien"/>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+2) Donnees de la structure de base
+**********************************
+a) Cartesien
+------------
+Il faut dans ce cas preciser au minimum les dimensions du maillage en metre ainsi que les nombre de mailles dans chaque direction
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<maillageCartesien>
+	<dimensions x="1.e-1" y="5.e-2" z="1."/>
+	<nombreMailles x="50" y ="25" z="1"/>
+	<AMR lvlMax="2" critereVar="0.2" varRho="true" varP="true" varU="false" varAlpha="false" xiSplit="0.1" xiJoin="0.1"/> <!-- Noeud optionnel -->
+</maillageCartesien>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+b) Non structure
+----------------
+Ici il faut donner le nom du fichier contenant le maillage et place dans le dossier "libMaillage". ECOGEN est capable de lire les fichiers de maillage sequentiels ou parallele issu de GMSH (*.msh)
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<maillageNonStructure>
+	<fichier nom="nonStructure2D/testNS.msh"/>
+	<modeParallele pretraitementGMSH="true"/>  <!-- Noeud optionnel selon fichier de maillage -->
+</maillageNonStructure>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+Attention : Le noeud optionnel <modeParallele> doit etre present si le fichier de maillage GMSH est un fichier de maillage predecoupe pour calculs parallele. L attribut pretraitementGMSH permet de generer les fichiers de maillage propre a chaque CPU et ne doit par consequent etre active que lors de la premiere utilisation du maillage.

@@ -1,0 +1,17 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<paramCalculs>
+	<run>euler2DTransportDiag1</run>
+	<modeSortie format="XML" binaire="false"/>
+	<coupe1D>
+	    <point x="0" y="0.0001" z="0.5"/>
+		<vecDir x="1" y="1" z="0"/>
+	</coupe1D>
+	<modeControleTemporel iterations="false">
+		<iterations nombre="100" freqImpr="10"/>
+		<temporel tempsTotal="3.6e-4" freqTemp="3.6e-5"/>
+	</modeControleTemporel>
+	<controleCalcul CFL="0.8"/>
+<!-- 	<ordre2>
+		<limiteurGlobal>superbee</limiteurGlobal>
+	</ordre2> -->
+</paramCalculs>

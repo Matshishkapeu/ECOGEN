@@ -1,0 +1,35 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<CI>
+	<!-- LISTE DES DOMAINES GEOMETRIQUES  -->
+	<domainesPhysiques>	
+		<!-- domaine complet -->
+		<domaine nom="base" etat="basseDensite" type="DomaineComplet"/>
+		<!-- chambre haute pression -->
+		<domaine nom="chambreGauche"  etat="hauteDensite" type="demiEspace">
+			<donneesDemiEspace axe="x" origine="0.5" direction="negatif"/>
+		</domaine>
+	</domainesPhysiques>	
+
+	<!-- LISTE DES CONDITIONS AUX LIMITES -->
+	<conditionsLimites>
+		<condLim nom="CLXm" type="abs" numero="1" />
+		<condLim nom="CLXp" type="abs" numero="2" />
+	</conditionsLimites>
+
+	<!--  LISTE DES ETATS UTILISES  -->
+	<etat nom="basseDensite">
+		<materiau type="fluide" EOS="GP_air.xml">
+			<donneesFluide densite="1.0" pression="1.e5">
+				<vitesse x="-1000." y="0." z="0."/>
+			</donneesFluide>
+		</materiau>
+	</etat>
+	<etat nom="hauteDensite">
+		<materiau type="fluide" EOS="GP_air.xml">
+			<donneesFluide densite="10.0" pression="1.e5">
+				<vitesse x="-1000." y="0." z="0."/>
+			</donneesFluide>
+		</materiau>
+	</etat>
+	
+</CI>

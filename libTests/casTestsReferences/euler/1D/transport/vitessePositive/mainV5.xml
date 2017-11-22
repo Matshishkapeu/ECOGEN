@@ -1,0 +1,13 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<paramCalculs>
+	<run>euler1DTransportUPlus</run>
+	<modeSortie format="GNU" binaire="false"/>
+	<modeControleTemporel iterations="false">
+		<iterations nombre="100" freqImpr="10"/>
+		<temporel tempsTotal="3.6e-4" freqTemp="3.6e-5"/>
+	</modeControleTemporel>
+	<controleCalcul CFL="0.8"/>
+	<ordre2>
+		<limiteurGlobal>superbee</limiteurGlobal>
+	</ordre2>
+</paramCalculs>

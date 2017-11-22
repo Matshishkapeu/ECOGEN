@@ -1,0 +1,6 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<modele>
+	<modeleResolu nom="Kapila" nombrePhases="2"/>
+	<equationEtat nom="SG_epoxy.xml"/>
+	<equationEtat nom="SG_spinel.xml"/>
+</modele>

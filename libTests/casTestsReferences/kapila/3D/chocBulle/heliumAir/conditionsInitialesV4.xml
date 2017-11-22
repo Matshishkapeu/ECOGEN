@@ -1,0 +1,63 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<CI>
+    <!-- LISTE DES DOMAINES GEOMETRIQUES  -->
+    <domainesPhysiques> 
+        <domaine nom="base" etat="chambreBP" type="DomaineComplet"/>
+        <domaine nom="HP"  etat="etatChoque" type="demiEspace">
+            <donneesDemiEspace axe="x" origine="0.27" direction="positif"/>
+        </domaine>
+        <domaine nom="bulle"  etat="bulleHelium" type="sphere">
+            <donneesSphere rayon="0.02">
+                <centre x="0.23" y="0." z="0."/>
+            </donneesSphere>
+        </domaine>
+    </domainesPhysiques>
+
+    <!-- LISTE DES CONDITIONS AUX LIMITES -->
+    <conditionsLimites>
+        <condLim nom="CLXm" type="abs" numero="1"/>
+        <condLim nom="CLXp" type="abs" numero="2"/>
+        <condLim nom="CLYm" type="mur" numero="3"/>
+        <condLim nom="CLYp" type="mur" numero="4"/>
+        <condLim nom="CLZm" type="mur" numero="5"/>
+        <condLim nom="CLZp" type="mur" numero="6"/>
+    </conditionsLimites>
+    
+    <!--  LISTE DES ETATS UTILISES  -->
+    <etat nom="chambreBP">
+        <materiau type="fluide" EOS="GP_air.xml">
+            <donneesFluide alpha="0.999999" densite="1.29" pression="101325."/>
+        </materiau>
+        <materiau type="fluide" EOS="GP_helium.xml">
+            <donneesFluide alpha="0.000001" densite="0.167" pression="101325."/>
+        </materiau>
+        <melange>
+            <vitesse x="0." y="0." z="0."/>
+        </melange>
+    </etat>
+
+    <etat nom="etatChoque">
+        <materiau type="fluide" EOS="GP_air.xml">
+            <donneesFluide alpha="0.999999" densite="2.4" pression="248758.567"/>
+        </materiau>
+        <materiau type="fluide" EOS="GP_helium.xml">
+            <donneesFluide alpha="0.000001" densite="0.167" pression="248758.567"/>
+        </materiau>
+        <melange>
+            <vitesse x="-230." y="0." z="0."/>
+        </melange>
+    </etat>
+
+    <etat nom="bulleHelium">
+        <materiau type="fluide" EOS="GP_air.xml">
+            <donneesFluide alpha="0.000001" densite="1.29" pression="101325."/>
+        </materiau>
+        <materiau type="fluide" EOS="GP_helium.xml">
+            <donneesFluide alpha="0.999999" densite="0.167" pression="101325."/>
+        </materiau>
+        <melange>
+            <vitesse x="0." y="0." z="0."/>
+        </melange>
+    </etat>
+
+</CI>

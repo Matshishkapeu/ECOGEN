@@ -1,0 +1,36 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<CI>
+	<!-- LISTE DES DOMAINES GEOMETRIQUES  -->
+	<domainesPhysiques>	
+		<domaine nom="base" etat="autour" type="DomaineComplet"/>
+	</domainesPhysiques>	
+
+	<!-- LISTE DES CONDITIONS AUX LIMITES -->
+	<conditionsLimites>
+		<condLim nom="axe" type="mur" numero="1" />
+		<condLim nom="paroi" type="mur" numero="2" />
+		<condLim nom="entree" type="reservoir" numero="3" etat="inj"/>
+		<condLim nom="sortie" type="sortie" numero="4">
+			<donneesSortie p0="1.e5"/>
+		</condLim>	
+	</conditionsLimites>
+
+	
+	<!--  LISTE DES ETATS UTILISES  -->
+	<etat nom="autour">
+		<materiau type="fluide" EOS="GP_helium.xml">
+			<donneesFluide densite="1.0" pression="1.e5">
+				<vitesse x="0." y="0." z="0."/>
+			</donneesFluide>
+		</materiau>
+	</etat>
+
+	<etat nom="inj">
+		<materiau type="fluide" EOS="GP_helium.xml">
+			<donneesFluide densite="2.0" pression="2.e5">
+				<vitesse x="0." y="0." z="0."/>
+			</donneesFluide>
+		</materiau>
+	</etat>
+
+</CI>

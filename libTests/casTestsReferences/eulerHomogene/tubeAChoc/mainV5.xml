@@ -1,0 +1,13 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<paramCalculs>
+	<run>eulerHomogeneTubeAChoc</run>
+	<modeSortie format="XML" binaire="false"/>
+	<modeControleTemporel iterations="false">
+		<iterations nombre="100" freqImpr="10"/>
+		<temporel tempsTotal="20.e-4" freqTemp="20e-5"/>
+	</modeControleTemporel>
+	<controleCalcul CFL="0.6"/>
+<!-- 	<ordre2>
+		<limiteurGlobal>minmod</limiteurGlobal>
+	</ordre2> -->
+</paramCalculs>

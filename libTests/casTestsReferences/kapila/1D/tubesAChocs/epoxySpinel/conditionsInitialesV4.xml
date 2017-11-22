@@ -1,0 +1,42 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<CI>
+    <!-- LISTE DES DOMAINES GEOMETRIQUES  -->
+    <domainesPhysiques> 
+        <domaine nom="base" etat="chambreBP" type="DomaineComplet"/>
+        <domaine nom="HP"  etat="chambreHP" type="demiEspace">
+            <donneesDemiEspace axe="x" origine="0.6" direction="negatif"/>
+        </domaine>
+    </domainesPhysiques>
+
+    <!-- LISTE DES CONDITIONS AUX LIMITES -->
+    <conditionsLimites>
+        <condLim nom="CLXm" type="abs" numero="1"/>
+        <condLim nom="CLXp" type="abs" numero="2"/>
+    </conditionsLimites>
+    
+    <!--  LISTE DES ETATS UTILISES  -->
+    <etat nom="chambreBP">
+        <materiau type="fluide" EOS="SG_epoxy.xml">
+            <donneesFluide alpha="0.5954" densite="1185.0" pression="1.e5"/>
+        </materiau>
+        <materiau type="fluide" EOS="SG_spinel.xml">
+            <donneesFluide alpha="0.4046" densite="3622.0" pression="1.e5"/>
+        </materiau>
+        <melange>
+            <vitesse x="0." y="0." z="0."/>
+        </melange>
+    </etat>
+
+    <etat nom="chambreHP">
+        <materiau type="fluide" EOS="SG_epoxy.xml">
+            <donneesFluide alpha="0.5954" densite="1185.0" pression="1.e10"/>
+        </materiau>
+        <materiau type="fluide" EOS="SG_spinel.xml">
+            <donneesFluide alpha="0.4046" densite="3622.0" pression="1.e10"/>
+        </materiau>
+        <melange>
+            <vitesse x="0." y="0." z="0."/>
+        </melange>
+    </etat>
+
+</CI>

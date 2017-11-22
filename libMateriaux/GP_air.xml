@@ -1,0 +1,17 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<parametresEOS>
+	<EOS fichier="GP_air.xml" type="GP"/>
+	<parametres
+		gamma="1.4"
+		cv="800.0"
+		energieRef="0."
+		entropieRef="0.">
+	</parametres>
+	<paramPhysiques
+		mu="1.85e-5"     
+		lambda="2.62">
+	</paramPhysiques>	
+</parametresEOS>
+
+
+<!-- lambda="0.0262" -->

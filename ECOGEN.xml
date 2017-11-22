@@ -1,0 +1,43 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<ecogen>
+	<!-- Cas tests reference Euler -->
+	<!-- ------------------------- -->
+	<casTest>./libTests/casTestsReferences/euler/1D/transport/vitessePositive/</casTest>
+	<!-- <casTest>./libTests/casTestsReferences/euler/1D/transport/vitesseNegative/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/euler/1D/tubesAChocs/HPGauche/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/euler/1D/tubesAChocs/HPDroite/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/euler/2D/transports/rectangleDiagonale1/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/euler/2D/HPCentrale/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/euler/2D/HPNonStructure/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/euler/2D/tuyeres/injectionSupersonique/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/euler/2D/tuyeres/reservoirAvecChoc/</casTest> -->
+
+	<!-- Cas tests reference Kapila -->
+	<!-- -------------------------- -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/1D/transports/interfaceEauAir/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/1D/tubesAChocs/interfaceEauAir/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/1D/tubesAChocs/epoxySpinel/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/1D/cavitation/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/2D/transportCarreEauDansAir/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/2D/testNonStructure/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/2D/chocBulle/heliumAir/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/2D/chocGoutte/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/2D/richtmyerMeshkov/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/3D/chocBulle/heliumAir/</casTest>	 -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/2D/tuyeres/injection/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/effetsPhysiques/capillarite/squareToCircleSymetry/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/effetsPhysiques/capillarite/squareToCircle/</casTest> -->
+
+	<!-- Problemes a resoudre -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/effetsPhysiques/gravite/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/2D/tuyeres/reservoir/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/effetsPhysiques/capillarite/cylindreEauDansAir/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/effetsPhysiques/capillarite/squareToCircle/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/effetsPhysiques/capillarite/goutteEauDansAir/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/2D/tubeAChocSurfaceLibre/</casTest> -->
+	<!-- <casTest>./libTests/casTestsReferences/kapila/3D/nonStructure/</casTest> -->
+
+	<!-- Cas tests reference Euler homogene -->
+	<!-- ---------------------------------- -->
+	<!-- <casTest>./libTests/casTestsReferences/eulerHomogene/tubeAChoc/</casTest> -->
+</ecogen>

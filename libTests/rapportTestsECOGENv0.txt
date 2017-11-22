@@ -1,0 +1,37 @@
+﻿rapport de tests v0.1:
+
+Euler
+./libTests/casTestsReferences/euler/1D/transport/vitessePositive/         : OK
+./libTests/casTestsReferences/euler/1D/transport/vitesseNagative/         : OK
+./libTests/casTestsReferences/euler/1D/tubesAChocs/HPGauche/              : OK
+./libTests/casTestsReferences/euler/1D/tubesAChocs/HPDroite/              : OK
+./libTests/casTestsReferences/euler/2D/transports/rectangleDiagonale1/    : OK
+./libTests/casTestsReferences/euler/2D/HPCentrale/                        : OK
+./libTests/casTestsReferences/euler/2D/HPNonStructure/                    : A verifier : Probleme gerer exception pour maillage inexistant
+./libTests/casTestsReferences/euler/2D/tuyeres/injectionSupersonique/     : OK
+./libTests/casTestsReferences/euler/2D/tuyeres/reservoirAvecChoc/         : OK
+
+Kapila
+./libTests/casTestsReferences/kapila/1D/transports/interfaceEauAir/       : OK
+./libTests/casTestsReferences/kapila/1D/tubesAChocs/interfaceEauAir/      : OK
+./libTests/casTestsReferences/kapila/1D/tubesAChocs/epoxySpinel/          : OK
+./libTests/casTestsReferences/kapila/1D/cavitation/                       : OK
+./libTests/casTestsReferences/kapila/2D/transportCarreEauDansAir/         : OK
+./libTests/casTestsReferences/kapila/2D/tuyeres/injection/                : A verifier
+./libTests/casTestsReferences/kapila/2D/tuyeres/reservoir/                : A verifier : Plantage -> reservoir Kapila a verifier
+./libTests/casTestsReferences/kapila/2D/chocBulle/heliumAir/              : OK
+./libTests/casTestsReferences/kapila/2D/chocGoutte/                       : OK
+./libTests/casTestsReferences/kapila/2D/tubeAChocSurfaceLibre/            : A verifier : Mise a jour mais plante de suite, peut-être problème gravité -> a regler.
+./libTests/casTestsReferences/kapila/2D/richtmyerMeshkov/                 : OK
+./libTests/casTestsReferences/kapila/2D/testNonStructure/                 : OK
+./libTests/casTestsReferences/kapila/3D/chocBulle/heliumAir/              : OK
+./libTests/casTestsReferences/kapila/3D/nonStructure/                     : Mise a jour mais plante de suite -> à régler.
+./libTests/casTestsReferences/kapila/effetsPhysiques/gravite/             : Plantage -> gravite a verifier
+./libTests/casTestsReferences/kapila/effetsPhysiques/capillarite/cylindreEauDansAir/  : Fonctionne mais coupe bug un peu -> à régler et à vérifier en parallèle.
+./libTests/casTestsReferences/kapila/effetsPhysiques/capillarite/squareToCircle/      : Fonctionne mais coupe bug un peu -> à régler et à vérifier en parallèle.
+./libTests/casTestsReferences/kapila/effetsPhysiques/capillarite/goutteEauDansAir/    : Fonctionne mais coupe bug un peu -> à régler et à vérifier en parallèle.
+
+EulerHomogene
+./libTests/casTestsReferences/eulerHomogene/tubeAChoc/                    : mauvaise lecture fichier conditionsInitialesV4.xml -> a corriger
+
+

@@ -1,0 +1,7 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<modele>
+	<modeleResolu nom="Kapila" nombrePhases="2" nombreTransports="1"/>
+	<equationEtat nom="GP_air.xml"/>
+	<equationEtat nom="SG_eau.xml"/>
+	<transport nom="couleur"/>
+</modele>

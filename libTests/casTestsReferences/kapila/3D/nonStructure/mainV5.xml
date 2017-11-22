@@ -1,0 +1,13 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<paramCalculs>
+	<run>kapila3DnonStructure</run>
+	<modeSortie format="XML" binaire="false"/>
+	<modeControleTemporel iterations="false">
+		<iterations nombre="600" freqImpr="30"/>
+		<temporel tempsTotal="6.8e-4" freqTemp="6.8e-5"/>
+	</modeControleTemporel>
+	<controleCalcul CFL="0.5"/>
+<!-- 	<ordre2>
+		<limiteurGlobal>vanleer</limiteurGlobal>
+	</ordre2> -->
+</paramCalculs>

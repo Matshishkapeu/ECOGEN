@@ -1,0 +1,9 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<modele>
+	<modeleResolu nom="Kapila" nombrePhases="2"/>
+	<equationEtat nom="GP_air.xml"/>
+	<equationEtat nom="SG_eau.xml"/>
+	<termeSource type="gravite">
+		<donneesGravite g="9.81" axe="Y" direction="negatif"/>
+	</termeSource>
+</modele>

@@ -1,0 +1,13 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<paramCalculs>
+	<run>kapila3DchocBulleHeliumAir</run>
+	<modeSortie format="XML" binaire="false"/>
+	<modeControleTemporel iterations="false">
+		<iterations nombre="100" freqImpr="10"/>
+		<temporel tempsTotal="700.e-6" freqTemp="700.e-7"/>
+	</modeControleTemporel>
+	<controleCalcul CFL="0.8"/>
+	<ordre2>
+		<limiteurGlobal>vanleer</limiteurGlobal>
+	</ordre2>
+</paramCalculs>

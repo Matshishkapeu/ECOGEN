@@ -1,0 +1,89 @@
+-------------------------------------------------
+Exemple type de fichier main minimal en version 5
+-------------------------------------------------
+
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<paramCalculs>
+	<run>exemple</run>
+	<modeSortie format="XML" binaire="false"/>
+	<modeControleTemporel iterations="false">
+		<iterations nombre="3" freqImpr="1"/>
+		<temporel tempsTotal="8.e-3" freqTemp="8.e-4"/>
+	</modeControleTemporel>
+	<controleCalcul CFL="0.8"/>
+</paramCalculs>
+
+----------------------------------
+Parametres de calculs OBLIGATOIRES
+----------------------------------
+
+1) Nom du run
+*************
+Le nom du run sera le nom donne au dossier contenant les resultats (dans le dossier "Resultats/")
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<run>exemple</run>    
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+2) Mode de sortie
+*****************
+Permet de choisir le format de sortie principale ainsi que le format des donnees (binaires ou ASCII par defaut).
+format implementes : XML ou GNU
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<modeSortie format="XML" binaire="false"/>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+3) Mode de controle temporel
+****************************
+Permet de choisir le mode de controle du deroulement iteratif du code. Deux possibilites :
+a) iterations="true" : le controle s effectue via un nombre d iterations et la frequence de sortie est precisee en nombre d iterations.
+b) iterations="false" : le controle s effectue via la donnee d un temps en secondes et d une frequence de sortie en secondes.
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<modeControleTemporel iterations="false">
+	<iterations nombre="3" freqImpr="1"/>
+    <temporel tempsTotal="8.e-3" freqTemp="8.e-4"/>
+</modeControleTemporel>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+4) Critere CFL (Courant number ratio)
+*************************************
+Permet de fixer la marge de securite vis a vis de la limite de stabilite du schema numerique. Ce nombre est toujours plus petit que 1.
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<controleCalcul CFL="0.8"/>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+----------------------------------
+Parametres de calculs FACULTATIFS
+----------------------------------
+
+*) Ordre de precision du schema
+*******************************
+Par defaut (en absence de ce noeud), le schema est ordre 1 en temps et en espace. Il est possible d effectuer un calcul a l ordre 2 en temps et en espace.
+Les limiteurs disponibles par ordre decroissant de stabilite sont : minmod, vanleer, vanalbada, mc, superbee.
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<ordre2>
+	<limiteurGlobal>minmod</limiteurGlobal>
+	<limiteurInterface>superbee</limiteurInterface>   <!-- noeud optionnel -->
+</ordre2>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+*) Coupe 1D
+***********
+Possibilite d effectuer des coupes 1D de calculs multiD. Pour cela definir une droite via un point et un vecteur directeur.
+Les resultats de la coupe seront places dans le dossier resultat correspondant (cf. run ci dessus) au format GNU.
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<coupe1D>
+    <point x="0" y="0.0001" z="0.5"/>
+	<vecDir x="1" y="1" z="0"/>
+</coupe1D>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+*) Coupe 2D
+***********
+Possibilite d effectuer des coupes 2D de calculs 3D. Pour cela definir un plan via un point et un vecteur normal.
+Les resultats de la coupe seront places dans le dossier resultat correspondant (cf. run ci dessus) au format GNU.
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<coupe2D>
+    <point x="0.51" y="0.51" z="0.51"/>
+	<vecNormal x="1" y="0" z="0"/>
+</coupe2D>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues

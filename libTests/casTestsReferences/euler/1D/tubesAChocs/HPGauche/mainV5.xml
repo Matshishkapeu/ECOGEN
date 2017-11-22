@@ -1,0 +1,13 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<paramCalculs>
+	<run>euler1DTubeAChocHPGauche</run>
+	<modeSortie format="GNU" binaire="false"/>
+	<modeControleTemporel iterations="false">
+		<iterations nombre="10" freqImpr="1"/>
+		<temporel tempsTotal="6.e-4" freqTemp="6e-5"/>
+	</modeControleTemporel>
+	<controleCalcul CFL="0.5"/>
+	<ordre2>
+		<limiteurGlobal>vanleer</limiteurGlobal>
+	</ordre2>
+</paramCalculs>

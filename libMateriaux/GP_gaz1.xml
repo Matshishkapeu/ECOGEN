@@ -1,0 +1,10 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<parametresEOS>
+	<EOS fichier="GP_helium.xml" type="GP"/>
+	<parametres
+		gamma="1.8"
+		cv="1000.0"
+		energieRef="0."
+		entropieRef="0.">
+	</parametres>
+</parametresEOS>

@@ -1,0 +1,94 @@
+---------------------------------------------------
+Exemple type de fichier modele minimal en version 5
+---------------------------------------------------
+
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<modele>
+	<modeleResolu nom="Kapila" nombrePhases="2"/>
+	<equationEtat nom="GP_air.xml"/>
+	<equationEtat nom="SG_eau.xml"/>
+</modele>
+
+---------------------------------
+Parametres de modele OBLIGATOIRES
+---------------------------------
+
+1) Modele hydrodynamique resolu
+*******************************
+Ce noeud doit contenir au minimum le nom du modele ainsi que le nombre de phases pour les modeles multiPhasiques. Pour les modeles monoPhase (exemple : Euler), l argument est optionnel et vaut 1 par defaut.
+L attribut nombreTransports est optionnel et vaut 0 par defaut.
+Les modeles disponibles sont : Euler, Kapila, EulerHomogene (en cours de dev).
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<modeleResolu nom="Kapila" nombrePhases="2" nombreTransports="1"/>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+2) Equations etats
+******************
+Le nombre de noeud <equationEtat> depend du nombre de phases. Chaque noeud contient le nom d un fichier equation etat present dans le dossier "libMateriaux"
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<equationEtat nom="GP_air.xml"/>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+------------
+CAS SPECIAUX
+------------
+Attention : pour EulerHomogene, il faut ajouter les deux attribut numero de liquide et vapeur (en cours de dev).
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<modeleResolu nom="EulerHomogene" liquide="1" vapeur="2"/>
+<equationEtat nom="SG_eauLiq.xml"/>
+<equationEtat nom="GP_eauVap.xml"/>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+---------------------------------
+Parametres de modeles FACULTATIFS
+---------------------------------
+
+*) Nom des variable transportees ajoutees
+*****************************************
+Le nombre de noeud <transport> depend du nombre de transports. Chaque noeud contient le nom d une variable transportee. Ces variables peuvent ensuite etre utilise lors de l ajout de physique additionnelles.
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<transport nom="couleur1"/>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+*) Physiques additionelles (en dev)
+***********************************
+Il est possible d ajouter un certains nombre d effets physique additionelles tels que capillarite, viscosite et conductivite (thermique)
+a) Capillarite
+--------------
+Les donnees doivent preciser la variable transportee utilisee comme fonction couleur pour les termes capillaires ainsi que la tension de surface associee en N/m.
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<physiqueAdd type="capillarite" >
+	<donneesCapillarite transport="couleur1" sigma="72.e-3"/>
+</physiqueAdd>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+b) Autres : en cours de dev...
+
+*) Termes sources
+*****************
+Des termes sources sont deja implementes, c est le cas de la prise en compte de l axisymmetrie dans les problemes 2D mais aussi de la gravite.
+a) Axisymmetrie 2D
+------------------
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<termeSource type="axi">
+	<donneesAxi axe="Xm"/>
+</termeSource>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+b) Gravite
+----------
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<termeSource type="gravite">
+	<donneesGravite g="9.81" axe="Y" direction="positif"/>
+</termeSource>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+
+*) Termes de relaxation supplementaires
+***************************************
+Certains modeles permettent de prendre en compte certains effets de relaxation...
+a) pressions, temperatures et potentiels chimique
+-------------------------------------------------
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+<relaxation type="PTMu">
+	<donneesPTMu liquide="SG_eauLiq.xml" vapeur="GP_eauVap.xml"/>
+</relaxation>
+%%%%%%%%%%%%%%%%%% << copier entre ces lignes exclues
+b) Autres : en cours de dev...

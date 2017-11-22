@@ -1,0 +1,10 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<paramCalculs>
+	<run>kapila2DHPNonStructure</run>
+	<modeSortie format="XML" binaire="false"/>
+	<modeControleTemporel iterations="false">
+		<iterations nombre="1" freqImpr="1"/>
+		<temporel tempsTotal="1e-3" freqTemp="5.e-5"/>
+	</modeControleTemporel>
+	<controleCalcul CFL="0.8"/>
+</paramCalculs>

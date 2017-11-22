@@ -1,0 +1,15 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<parametresEOS>
+	<EOS fichier="SG_eau300K.xml" type="SG"/>
+	<parametres
+		gamma="2.955"
+		pInf="7.22e8"
+		cv="1231.2"
+		energieRef="0."
+		entropieRef="0.">
+	</parametres>
+	<paramPhysiques
+		mu="1.e-3"
+		lambda="0.6">
+	</paramPhysiques>		
+</parametresEOS>

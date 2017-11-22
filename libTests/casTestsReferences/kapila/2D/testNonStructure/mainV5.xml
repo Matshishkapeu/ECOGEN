@@ -1,0 +1,11 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<paramCalculs>
+	<run>kapila2DTestNonStructure</run>
+	<modeSortie format="XML" binaire="true"/>
+	<modeControleTemporel iterations="false">
+		<iterations nombre="600" freqImpr="30"/>
+		<temporel tempsTotal="1.e-3" freqTemp="5.e-5"/>
+	</modeControleTemporel>
+	<controleCalcul CFL="0.5"/>
+</paramCalculs>
+

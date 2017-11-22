@@ -1,0 +1,22 @@
+<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
+<parametresEOS>
+	<EOS fichier="GP_oxyVap.xml" type="GP"/>
+	<parametres
+		gamma="1.47"
+		cv="531."
+		energieRef="6.9e3"
+		entropieRef="-9264">
+	</parametres>
+	<paramPhysiques
+		mu="1.e-3"
+		lambda="0.6">
+	</paramPhysiques>		
+</parametresEOS>
+
+
+	<!-- <parametres
+		gamma="1.43"
+		cv="1040.14"
+		energieRef="3.197e6"
+		entropieRef="-23.408e3">
+	</parametres> -->
