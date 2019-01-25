@@ -30,9 +30,14 @@
 #ifndef PARALLEL_H
 #define PARALLEL_H
 
+//! \file      Parallel.h
+//! \author    F. Petitpas, K. Schmidmayer, S. Le Martelot
+//! \version   1.0
+//! \date      July 19 2018
+
 #include <mpi.h>
-#include "Modeles/Phase.h"
-#include "Cellule.h"
+#include "Models/Phase.h"
+#include "Cell.h"
 
 class Parallel
 {
@@ -40,115 +45,115 @@ public:
   Parallel();
   virtual ~Parallel();
 
-  void initialisation(int &argc, char *argv[]);
-  void setVoisin(const int voisin); //attribut voisin
-  void setElementsAEnvoyer(const int voisin, int* numeroElement, const int &nombreElements);
-  void setElementsARecevoir(const int voisin, int* numeroElement, const int &nombreElements);
-	void initialiseCommunicationsPersistantes(const int &nombreVariablesPrimitives, const int &nombreVariablesPentes, const int &nombreVariablesTransports, const int &dim);
-	void calculDt(double &dt);
-	void finalise(const int &lvlMax);
-	void arreterCode();
-	void verifieEtatCPUs();
+  void initialization(int &argc, char *argv[]);
+  void setNeighbour(const int neighbour, std::string whichCpuAmIForNeighbour);
+  void setElementsToSend(const int neighbour, int* numberElement, const int &numberElements);
+  void setElementsToReceive(const int neighbour, int* numberElement, const int &numberElements);
+	void initializePersistentCommunications(const int &numberPrimitiveVariables, const int &numberSlopeVariables, const int &numberTransportVariables, const int &dim);
+	void computeDt(double &dt);
+  void computePMax(double &pMax, double &pMaxWall);
+	void finalize(const int &lvlMax);
+	void stopRun();
+	void verifyStateCPUs();
   
   //Methodes pour toutes les variables primitives
-  void initialiseCommunicationsPersistantesPrimitives();
-  void finaliseCommunicationsPersistantesPrimitives(const int &lvlMax);
-  void communicationsPrimitives(Cellule **cellules, Eos **eos, Prim type = vecPhases);
+  void initializePersistentCommunicationsPrimitives();
+  void finalizePersistentCommunicationsPrimitives(const int &lvlMax);
+  void communicationsPrimitives(Cell **cells, Eos **eos, Prim type = vecPhases);
 
-	//Methodes pour toutes les pentes
-	void initialiseCommunicationsPersistantesPentes();
-	void finaliseCommunicationsPersistantesPentes(const int &lvlMax);
-	void communicationsPentes(Cellule **cellules);
+	//Methodes pour toutes les slopes
+	void initializePersistentCommunicationsSlopes();
+	void finalizePersistentCommunicationsSlopes(const int &lvlMax);
+	void communicationsSlopes(Cell **cells);
 
-  //Methodes pour une variable scalaire
-  void initialiseCommunicationsPersistantesScalaire();
-  void finaliseCommunicationsPersistantesScalaire(const int &lvlMax);
-  void communicationsScalaire(Cellule **cellules, std::string nomScalaire);
+  //Methodes pour une variable scalar
+  void initializePersistentCommunicationsScalar();
+  void finalizePersistentCommunicationsScalar(const int &lvlMax);
   
   //Methodes pour une variable vectorielle
-  void initialiseCommunicationsPersistantesVecteur(const int &dim);
-  void finaliseCommunicationsPersistantesVecteur(const int &lvlMax);
-  void communicationsVecteur(Cellule **cellules, std::string nomVecteur, const int &dim, int num=0, int indice=-1);
+  void initializePersistentCommunicationsVector(const int &dim);
+  void finalizePersistentCommunicationsVector(const int &lvlMax);
+  void communicationsVector(Cell **cells, std::string nameVector, const int &dim, int num=0, int index=-1);
 
   //Methodes pour toutes les variables primitives
-  void initialiseCommunicationsPersistantesTransports();
-  void finaliseCommunicationsPersistantesTransports(const int &lvlMax);
-  void communicationsTransports(Cellule **cellules);
+  void initializePersistentCommunicationsTransports();
+  void finalizePersistentCommunicationsTransports(const int &lvlMax);
+  void communicationsTransports(Cell **cells);
 
 	//Methodes pour les variables AMR
-	void initialiseCommunicationsPersistantesAMR(const int &nombreVariablesPrimitives, const int &nombreVariablesPentes, const int &nombreVariablesTransports, const int &dim, const int &lvlMax);
-	void initialiseCommunicationsPersistantesNiveauxAMR(const int &lvlMax);
-	void miseAJourCommunicationsPersistantesLvl(int lvl, const int &dim);
-	void finaliseAMR(const int &lvlMax);
+	void initializePersistentCommunicationsAMR(const int &numberPrimitiveVariables, const int &numberSlopeVariables, const int &numberTransportVariables, const int &dim, const int &lvlMax);
+	void initializePersistentCommunicationsLvlAMR(const int &lvlMax);
+	void updatePersistentCommunicationsLvl(int lvl, const int &dim);
+	void finalizeAMR(const int &lvlMax);
 
-	void initialiseCommunicationsPersistantesXi();
-	void finaliseCommunicationsPersistantesXi(const int &lvlMax);
-	void communicationsXi(Cellule **cellules, const int &lvl);
+	void initializePersistentCommunicationsXi();
+	void finalizePersistentCommunicationsXi(const int &lvlMax);
+	void communicationsXi(Cell **cells, const int &lvl);
 
-	void initialiseCommunicationsPersistantesSplit();
-	void finaliseCommunicationsPersistantesSplit(const int &lvlMax);
-	void communicationsSplit(Cellule **cellules, const int &lvl);
+	void initializePersistentCommunicationsSplit();
+	void finalizePersistentCommunicationsSplit(const int &lvlMax);
+	void communicationsSplit(Cell **cells, const int &lvl);
 
-	void initialiseCommunicationsPersistantesNombreCellulesGhost();
-	void finaliseCommunicationsPersistantesNombreCellulesGhost();
-	void communicationsNombreCellulesGhost(Cellule **cellules, const int &lvl);
+	void initializePersistentCommunicationsNumberGhostCells();
+	void finalizePersistentCommunicationsNumberGhostCells();
+	void communicationsNumberGhostCells(Cell **cells, const int &lvl);
 
-	void communicationsPrimitivesAMR(Cellule **cellules, Eos **eos, const int &lvl, Prim type = vecPhases);
-	void communicationsPentesAMR(Cellule **cellules, const int &lvl);
-	void communicationsScalaireAMR(Cellule **cellules, std::string nomScalaire, const int &lvl);
-	void communicationsVecteurAMR(Cellule **cellules, std::string nomVecteur, const int &dim, const int &lvl, int num = 0, int indice = -1);
-  void communicationsTransportsAMR(Cellule **cellules, const int &lvl);
+	void communicationsPrimitivesAMR(Cell **cells, Eos **eos, const int &lvl, Prim type = vecPhases);
+	void communicationsSlopesAMR(Cell **cells, const int &lvl);
+	void communicationsVectorAMR(Cell **cells, std::string nameVector, const int &dim, const int &lvl, int num = 0, int index = -1);
+  void communicationsTransportsAMR(Cell **cells, const int &lvl);
 
 private:
     
-  int m_etatCPU;
-  bool *m_estVoisin;
-	int ** m_elementsAEnvoyer;
-	int ** m_elementsARecevoir;
-	int * m_nombreElementsAEnvoyerAVoisin;
-	int * m_nombreElementsARecevoirDeVoisin;
-	int m_nombreVariablesPrimitives;          /*Nombre de variables de primitives a transmettre (phases + melange + transports)*/
-	int m_nombreVariablesPentes;              /*Nombre de variables de pentes a transmettre (phases + melange + transports)*/
-  int m_nombreVariablesTransports;          /*Nombre de variables de transports a transmettre*/
+  int m_stateCPU;
+  bool *m_isNeighbour;
+  std::string *m_whichCpuAmIForNeighbour;
+	int ** m_elementsToSend;
+	int ** m_elementsToReceive;
+	int * m_numberElementsToSendToNeighbour;
+	int * m_numberElementsToReceiveFromNeighbour;
+	int m_numberPrimitiveVariables;          /*Number of primitive variables to send (phases + mixture + transports)*/
+	int m_numberSlopeVariables;              /*Number of slope variables to send (phases + mixture + transports)*/
+  int m_numberTransportVariables;          /*Number of transport variables to send*/
 
-	std::vector<double **> m_tamponRec;
-	std::vector<double **> m_tamponEnv;
-	std::vector<double **> m_tamponRecPentes;
-	std::vector<double **> m_tamponEnvPentes;
-	std::vector<double **> m_tamponRecScalaire;
-	std::vector<double **> m_tamponEnvScalaire;
-	std::vector<double **> m_tamponRecVecteur;
-	std::vector<double **> m_tamponEnvVecteur;
-  std::vector<double **> m_tamponRecTransports;
-  std::vector<double **> m_tamponEnvTransports;
-	std::vector<double **> m_tamponRecXi;
-	std::vector<double **> m_tamponEnvXi;
-	std::vector<bool **> m_tamponRecSplit;
-	std::vector<bool **> m_tamponEnvSplit;
-	int * m_tamponNombreElementsAEnvoyerAVoisin;
-	int * m_tamponNombreElementsARecevoirDeVoisin;
+	std::vector<double **> m_bufferReceive;
+	std::vector<double **> m_bufferSend;
+	std::vector<double **> m_bufferReceiveSlopes;
+	std::vector<double **> m_bufferSendSlopes;
+	std::vector<double **> m_bufferReceiveScalar;
+	std::vector<double **> m_bufferSendScalar;
+	std::vector<double **> m_bufferReceiveVector;
+	std::vector<double **> m_bufferSendVector;
+  std::vector<double **> m_bufferReceiveTransports;
+  std::vector<double **> m_bufferSendTransports;
+	std::vector<double **> m_bufferReceiveXi;
+	std::vector<double **> m_bufferSendXi;
+	std::vector<bool **> m_bufferReceiveSplit;
+	std::vector<bool **> m_bufferSendSplit;
+	int * m_bufferNumberElementsToSendToNeighbor;
+	int * m_bufferNumberElementsToReceiveFromNeighbour;
   
-	std::vector<MPI_Request **> m_reqEnvois;
-	std::vector<MPI_Request **> m_reqReceptions;
-	std::vector<MPI_Request **> m_reqEnvoisPentes;
-	std::vector<MPI_Request **> m_reqReceptionsPentes;
-	std::vector<MPI_Request **> m_reqEnvoisScalaire;
-	std::vector<MPI_Request **> m_reqReceptionsScalaire;
-	std::vector<MPI_Request **> m_reqEnvoisVecteur;
-	std::vector<MPI_Request **> m_reqReceptionsVecteur;
-  std::vector<MPI_Request **> m_reqEnvoisTransports;
-  std::vector<MPI_Request **> m_reqReceptionsTransports;
-	std::vector<MPI_Request **> m_reqEnvoisXi;
-	std::vector<MPI_Request **> m_reqReceptionsXi;
-	std::vector<MPI_Request **> m_reqEnvoisSplit;
-	std::vector<MPI_Request **> m_reqReceptionsSplit;
-	MPI_Request ** m_reqNombreElementsAEnvoyerAVoisin;
-	MPI_Request ** m_reqNombreElementsARecevoirDeVoisin;
+	std::vector<MPI_Request **> m_reqSend;
+	std::vector<MPI_Request **> m_reqReceive;
+	std::vector<MPI_Request **> m_reqSendSlopes;
+	std::vector<MPI_Request **> m_reqReceiveSlopes;
+	std::vector<MPI_Request **> m_reqSendScalar;
+	std::vector<MPI_Request **> m_reqReceiveScalar;
+	std::vector<MPI_Request **> m_reqSendVector;
+	std::vector<MPI_Request **> m_reqReceiveVector;
+  std::vector<MPI_Request **> m_reqSendTransports;
+  std::vector<MPI_Request **> m_reqReceiveTransports;
+	std::vector<MPI_Request **> m_reqSendXi;
+	std::vector<MPI_Request **> m_reqReceiveXi;
+	std::vector<MPI_Request **> m_reqSendSplit;
+	std::vector<MPI_Request **> m_reqReceiveSplit;
+	MPI_Request ** m_reqNumberElementsToSendToNeighbor;
+	MPI_Request ** m_reqNumberElementsToReceiveFromNeighbour;
 
 };
 
-extern Parallel Calcul_Parallele;
-extern int rang;
+extern Parallel parallel;
+extern int rankCpu;
 extern int Ncpu;
 
 #endif // PARALLEL_H

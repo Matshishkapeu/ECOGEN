@@ -1,9 +1,0 @@
-<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
-<maillage>
-	<type structure="cartesien"/>
-	<maillageCartesien>
-		<dimensions x="1." y="1." z="1."/>
-		<nombreMailles x="200" y ="200" z="1"/>
-<!-- 		<AMR lvlMax="3" critereVar="0.08" varRho="true" varP="true" varU="false" varAlpha="false" xiSplit="0.05" xiJoin="0.05"/> -->
-	</maillageCartesien>
-</maillage>

@@ -1,13 +1,13 @@
-#désactivation des règles implicites
+#desactivation of the implicite rules
 .SUFFIXES:
 
-#Définitions
+#Definitions
 EXECUTABLE = ECOGEN
 CXX = mpicxx
 CXXFLAGS = -O3
 # LDFLAGS =
 
-dirs = $(shell find  -type d)
+dirs = $(shell find . -type d)
 SOURCES = $(foreach dir,$(dirs),$(wildcard $(dir)/*.cpp))
 OBJETS = $(SOURCES:.cpp=.o)
 
@@ -27,9 +27,9 @@ clean:
 		rm -rf $(OBJETS)
 
 cleanres:
-		rm -rf ./VTK/*
+		rm -rf ./results/*
 
-#Création de l'éxécutable
+#Creation of the executable
 
 
 # DO NOT DELETE

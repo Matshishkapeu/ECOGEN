@@ -30,22 +30,33 @@
 #ifndef SOURCE_H
 #define SOURCE_H
 
+//! \file      Source.h
+//! \author    F. Petitpas, K. Schmidmayer
+//! \version   1.0
+//! \date      January 10 2018
+
 #include <string>
 #include "../libTierces/tinyxml2.h"
-#include "../Erreurs.h"
-#include "../Outils.h"
-#include "../Cellule.h"
+#include "../Errors.h"
+#include "../Tools.h"
+#include "../Cell.h"
 
+//! \class     Source
+//! \brief     Abstract class for source terms
 class Source
 {
   public:
     Source();
     virtual ~Source();
-    /*!
-     * Integration de termes sources sur grandeurs conservatives
-     */
-    void integreTermeSource(Cellule *cell, const int &nombrePhases, const double &dt);
-    virtual void prepareSource(Cellule *cell, const int nombrePhases){ Erreurs::messageErreur("prepareSource non prevu pour le type de source choisi"); };
+
+    //! \brief     Source terms integration on conservative quantities
+    //! \param     cell           cell for source term integration
+    //! \param     numberPhases   number of phases
+    //! \param     dt             explicit integration time step
+    virtual void integrateSourceTerms(Cell *cell, const int &numberPhases, const double &dt){ Errors::errorMessage("integrateSourceTerms not available for required source"); };
+    virtual void sourceEvolution(const double &time) {};
+
+    virtual Coord computeAbsVelocity(const Coord relVelocity, const Coord position) { Errors::errorMessage("computeAbsVelocity not available for required source"); return 0.; };
 };
 
 #endif // SOURCE_H

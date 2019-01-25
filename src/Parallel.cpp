@@ -27,20 +27,25 @@
 //  along with ECOGEN (file LICENSE).  
 //  If not, see <http://www.gnu.org/licenses/>.
 
+//! \file      Parallel.cpp
+//! \author    F. Petitpas, K. Schmidmayer, S. Le Martelot
+//! \version   1.0
+//! \date      July 19 2018
+
 #include "Parallel.h"
 #include <iostream>
 #include "Eos/Eos.h"
 
-//Variables liees au calcul parallele
-Parallel Calcul_Parallele;
-int rang, Ncpu;
+//Variables linked to parallel computation
+Parallel parallel;
+int rankCpu, Ncpu;
 
 using namespace std;
 
 //***********************************************************************
 
 Parallel::Parallel() :
-  m_etatCPU(1)
+  m_stateCPU(1)
 {}
 
 //***********************************************************************
@@ -49,173 +54,182 @@ Parallel::~Parallel(){}
 
 //***********************************************************************
 
-void Parallel::initialisation(int &argc, char* argv[])
+void Parallel::initialization(int &argc, char* argv[])
 {
-  //MPI_Init(&argc, &argv);
-  //MPI_Comm_rank(MPI_COMM_WORLD, &rang);
-  //MPI_Comm_size(MPI_COMM_WORLD, &Ncpu);
-  if (Ncpu == 1) return; //Pas besoin de la suite dans le cas monoCPU
+  if (Ncpu == 1) return; //The following is not necessary in the case of monoCPU
 
-  m_estVoisin = new bool[Ncpu];
-	m_elementsAEnvoyer = new int*[Ncpu];
-  m_elementsARecevoir = new int*[Ncpu];
-  m_nombreElementsAEnvoyerAVoisin = new int[Ncpu];
-  m_nombreElementsARecevoirDeVoisin = new int[Ncpu]; // A priori peuvent etre differents si maillage tordu !
+  m_isNeighbour = new bool[Ncpu];
+  m_whichCpuAmIForNeighbour = new string[Ncpu];
+	m_elementsToSend = new int*[Ncpu];
+  m_elementsToReceive = new int*[Ncpu];
+  m_numberElementsToSendToNeighbour = new int[Ncpu];
+  m_numberElementsToReceiveFromNeighbour = new int[Ncpu]; // A priori can be different if weird mesh !
 
-  m_tamponEnv.push_back(new double*[Ncpu]);
-  m_tamponRec.push_back(new double*[Ncpu]);
-	m_tamponEnvPentes.push_back(new double*[Ncpu]);
-	m_tamponRecPentes.push_back(new double*[Ncpu]);
-  m_tamponEnvScalaire.push_back(new double*[Ncpu]);
-  m_tamponRecScalaire.push_back(new double*[Ncpu]);
-  m_tamponEnvVecteur.push_back(new double*[Ncpu]);
-  m_tamponRecVecteur.push_back(new double*[Ncpu]);
-  m_tamponEnvTransports.push_back(new double*[Ncpu]);
-  m_tamponRecTransports.push_back(new double*[Ncpu]);
-	m_tamponEnvXi.push_back(new double*[Ncpu]);
-	m_tamponRecXi.push_back(new double*[Ncpu]);
-	m_tamponEnvSplit.push_back(new bool*[Ncpu]);
-	m_tamponRecSplit.push_back(new bool*[Ncpu]);
-	m_tamponNombreElementsAEnvoyerAVoisin = new int[Ncpu];
-	m_tamponNombreElementsARecevoirDeVoisin = new int[Ncpu];
+  m_bufferSend.push_back(new double*[Ncpu]);
+  m_bufferReceive.push_back(new double*[Ncpu]);
+	m_bufferSendSlopes.push_back(new double*[Ncpu]);
+	m_bufferReceiveSlopes.push_back(new double*[Ncpu]);
+  m_bufferSendScalar.push_back(new double*[Ncpu]);
+  m_bufferReceiveScalar.push_back(new double*[Ncpu]);
+  m_bufferSendVector.push_back(new double*[Ncpu]);
+  m_bufferReceiveVector.push_back(new double*[Ncpu]);
+  m_bufferSendTransports.push_back(new double*[Ncpu]);
+  m_bufferReceiveTransports.push_back(new double*[Ncpu]);
+	m_bufferSendXi.push_back(new double*[Ncpu]);
+	m_bufferReceiveXi.push_back(new double*[Ncpu]);
+	m_bufferSendSplit.push_back(new bool*[Ncpu]);
+	m_bufferReceiveSplit.push_back(new bool*[Ncpu]);
+	m_bufferNumberElementsToSendToNeighbor = new int[Ncpu];
+	m_bufferNumberElementsToReceiveFromNeighbour = new int[Ncpu];
 
-  m_reqEnvois.push_back(new MPI_Request*[Ncpu]);
-  m_reqReceptions.push_back(new MPI_Request*[Ncpu]);
-	m_reqEnvoisPentes.push_back(new MPI_Request*[Ncpu]);
-	m_reqReceptionsPentes.push_back(new MPI_Request*[Ncpu]);
-  m_reqEnvoisScalaire.push_back(new MPI_Request*[Ncpu]);
-  m_reqReceptionsScalaire.push_back(new MPI_Request*[Ncpu]);
-  m_reqEnvoisVecteur.push_back(new MPI_Request*[Ncpu]);
-  m_reqReceptionsVecteur.push_back(new MPI_Request*[Ncpu]);
-  m_reqEnvoisTransports.push_back(new MPI_Request*[Ncpu]);
-  m_reqReceptionsTransports.push_back(new MPI_Request*[Ncpu]);
-	m_reqEnvoisXi.push_back(new MPI_Request*[Ncpu]);
-	m_reqReceptionsXi.push_back(new MPI_Request*[Ncpu]);
-	m_reqEnvoisSplit.push_back(new MPI_Request*[Ncpu]);
-	m_reqReceptionsSplit.push_back(new MPI_Request*[Ncpu]);
-	m_reqNombreElementsAEnvoyerAVoisin = new MPI_Request*[Ncpu];
-	m_reqNombreElementsARecevoirDeVoisin = new MPI_Request*[Ncpu];
+  m_reqSend.push_back(new MPI_Request*[Ncpu]);
+  m_reqReceive.push_back(new MPI_Request*[Ncpu]);
+	m_reqSendSlopes.push_back(new MPI_Request*[Ncpu]);
+	m_reqReceiveSlopes.push_back(new MPI_Request*[Ncpu]);
+  m_reqSendScalar.push_back(new MPI_Request*[Ncpu]);
+  m_reqReceiveScalar.push_back(new MPI_Request*[Ncpu]);
+  m_reqSendVector.push_back(new MPI_Request*[Ncpu]);
+  m_reqReceiveVector.push_back(new MPI_Request*[Ncpu]);
+  m_reqSendTransports.push_back(new MPI_Request*[Ncpu]);
+  m_reqReceiveTransports.push_back(new MPI_Request*[Ncpu]);
+	m_reqSendXi.push_back(new MPI_Request*[Ncpu]);
+	m_reqReceiveXi.push_back(new MPI_Request*[Ncpu]);
+	m_reqSendSplit.push_back(new MPI_Request*[Ncpu]);
+	m_reqReceiveSplit.push_back(new MPI_Request*[Ncpu]);
+	m_reqNumberElementsToSendToNeighbor = new MPI_Request*[Ncpu];
+	m_reqNumberElementsToReceiveFromNeighbour = new MPI_Request*[Ncpu];
 
   for (int i = 0; i < Ncpu; i++) {
-    m_estVoisin[i] = false;
-    m_nombreElementsAEnvoyerAVoisin[i] = 0;
-    m_nombreElementsARecevoirDeVoisin[i] = 0;
-		m_elementsAEnvoyer[i] = NULL;
-    m_elementsARecevoir[i] = NULL;
-    m_tamponEnv[0][i] = NULL;
-    m_tamponRec[0][i] = NULL;
-    m_reqEnvois[0][i] = NULL;
-    m_reqReceptions[0][i] = NULL;
-		m_tamponEnvPentes[0][i] = NULL;
-		m_tamponRecPentes[0][i] = NULL;
-		m_reqEnvoisPentes[0][i] = NULL;
-		m_reqReceptionsPentes[0][i] = NULL;
-    m_tamponEnvScalaire[0][i] = NULL;
-    m_tamponRecScalaire[0][i] = NULL;
-    m_reqEnvoisScalaire[0][i] = NULL;
-    m_reqReceptionsScalaire[0][i] = NULL;
-    m_tamponEnvVecteur[0][i] = NULL;
-    m_tamponRecVecteur[0][i] = NULL;
-    m_reqEnvoisVecteur[0][i] = NULL;
-    m_reqReceptionsVecteur[0][i] = NULL;
-    m_tamponEnvTransports[0][i] = NULL;
-    m_tamponRecTransports[0][i] = NULL;
-    m_reqEnvoisTransports[0][i] = NULL;
-    m_reqReceptionsTransports[0][i] = NULL;
-		m_tamponEnvXi[0][i] = NULL;
-		m_tamponRecXi[0][i] = NULL;
-		m_reqEnvoisXi[0][i] = NULL;
-		m_reqReceptionsXi[0][i] = NULL;
-		m_tamponEnvSplit[0][i] = NULL;
-		m_tamponRecSplit[0][i] = NULL;
-		m_reqEnvoisSplit[0][i] = NULL;
-		m_reqReceptionsSplit[0][i] = NULL;
-		m_tamponNombreElementsAEnvoyerAVoisin[i] = 0;
-		m_tamponNombreElementsARecevoirDeVoisin[i] = 0;
-		m_reqNombreElementsAEnvoyerAVoisin[i] = NULL;
-		m_reqNombreElementsARecevoirDeVoisin[i] = NULL;
+    m_isNeighbour[i] = false;
+    m_whichCpuAmIForNeighbour[i] = "";
+    m_numberElementsToSendToNeighbour[i] = 0;
+    m_numberElementsToReceiveFromNeighbour[i] = 0;
+		m_elementsToSend[i] = NULL;
+    m_elementsToReceive[i] = NULL;
+    m_bufferSend[0][i] = NULL;
+    m_bufferReceive[0][i] = NULL;
+    m_reqSend[0][i] = NULL;
+    m_reqReceive[0][i] = NULL;
+		m_bufferSendSlopes[0][i] = NULL;
+		m_bufferReceiveSlopes[0][i] = NULL;
+		m_reqSendSlopes[0][i] = NULL;
+		m_reqReceiveSlopes[0][i] = NULL;
+    m_bufferSendScalar[0][i] = NULL;
+    m_bufferReceiveScalar[0][i] = NULL;
+    m_reqSendScalar[0][i] = NULL;
+    m_reqReceiveScalar[0][i] = NULL;
+    m_bufferSendVector[0][i] = NULL;
+    m_bufferReceiveVector[0][i] = NULL;
+    m_reqSendVector[0][i] = NULL;
+    m_reqReceiveVector[0][i] = NULL;
+    m_bufferSendTransports[0][i] = NULL;
+    m_bufferReceiveTransports[0][i] = NULL;
+    m_reqSendTransports[0][i] = NULL;
+    m_reqReceiveTransports[0][i] = NULL;
+		m_bufferSendXi[0][i] = NULL;
+		m_bufferReceiveXi[0][i] = NULL;
+		m_reqSendXi[0][i] = NULL;
+		m_reqReceiveXi[0][i] = NULL;
+		m_bufferSendSplit[0][i] = NULL;
+		m_bufferReceiveSplit[0][i] = NULL;
+		m_reqSendSplit[0][i] = NULL;
+		m_reqReceiveSplit[0][i] = NULL;
+		m_bufferNumberElementsToSendToNeighbor[i] = 0;
+		m_bufferNumberElementsToReceiveFromNeighbour[i] = 0;
+		m_reqNumberElementsToSendToNeighbor[i] = NULL;
+		m_reqNumberElementsToReceiveFromNeighbour[i] = NULL;
   } 
 }
 
 //***********************************************************************
 
-void Parallel::setVoisin(const int voisin)
+void Parallel::setNeighbour(const int neighbour, string whichCpuAmIForNeighbour)
 { 
-  m_estVoisin[voisin] = true;
+  m_isNeighbour[neighbour] = true;
+  m_whichCpuAmIForNeighbour[neighbour] = whichCpuAmIForNeighbour;
 }
 
 //***********************************************************************
 
-void Parallel::setElementsAEnvoyer(const int voisin, int* numeroElement, const int &nombreElements)
+void Parallel::setElementsToSend(const int neighbour, int* numberElement, const int &numberElements)
 {
-  m_nombreElementsAEnvoyerAVoisin[voisin] = nombreElements;
+  m_numberElementsToSendToNeighbour[neighbour] = numberElements;
 
-  //On dimensionne le tableau où seront stockes les numeros des mailles a envoyer au voisin "voisin"
-	m_elementsAEnvoyer[voisin] = new int[nombreElements];
-  //Puis on stocke les numeros a partir du tableau fourni
-  for (int i = 0; i < nombreElements; i++) {
-		m_elementsAEnvoyer[voisin][i] = numeroElement[i];
+  //We size the table where will be stored the numbers of elements to send to neighbour "neighbour"
+	m_elementsToSend[neighbour] = new int[numberElements];
+  //Then we store the numbers from the furnished table
+  for (int i = 0; i < numberElements; i++) {
+		m_elementsToSend[neighbour][i] = numberElement[i];
   }
 }
 
 //***********************************************************************
 
-void Parallel::setElementsARecevoir(const int voisin, int* numeroElement, const int &nombreElements)
+void Parallel::setElementsToReceive(const int neighbour, int* numberElement, const int &numberElements)
 {
-  m_nombreElementsARecevoirDeVoisin[voisin] = nombreElements;
+  m_numberElementsToReceiveFromNeighbour[neighbour] = numberElements;
   
-  //On dimensionne le tableau où seront stockes les numeros des mailles où seront reçues les datas emises par le voisin "voisin"
-  m_elementsARecevoir[voisin] = new int[nombreElements];
-  //Puis on stocke les numeros a partir du tableau fourni
-  for (int i = 0; i < nombreElements; i++) {
-    m_elementsARecevoir[voisin][i] = numeroElement[i];
+  //We size the table where will be stored the numbers of elements where will be received the sent data from neighbour "neighbour"
+  m_elementsToReceive[neighbour] = new int[numberElements];
+  //Then we store the numbers from the furnished table
+  for (int i = 0; i < numberElements; i++) {
+    m_elementsToReceive[neighbour][i] = numberElement[i];
   }
 }
 
 //***********************************************************************
 
-void Parallel::initialiseCommunicationsPersistantes(const int &nombreVariablesPrimitives, const int &nombreVariablesPentes, const int &nombreVariablesTransports, const int &dim)
+void Parallel::initializePersistentCommunications(const int &numberPrimitiveVariables, const int &numberSlopeVariables, const int &numberTransportVariables, const int &dim)
 {
 	if (Ncpu > 1) {
-		m_nombreVariablesPrimitives = nombreVariablesPrimitives;
-    m_nombreVariablesPentes = nombreVariablesPentes;
-    m_nombreVariablesTransports = nombreVariablesTransports;
-		//Initialisation des communications des variables primitives du modele resolu
-		Calcul_Parallele.initialiseCommunicationsPersistantesPrimitives();
-		//Initialisation des communications des pentes pour l'ordre 2
-		Calcul_Parallele.initialiseCommunicationsPersistantesPentes();
-		//Initialisation des communications necessaires aux physiques additionelles (vecteurs de dim=3)
-		Calcul_Parallele.initialiseCommunicationsPersistantesVecteur(dim);
-    //Initialisation des communications des variables transportees
-    Calcul_Parallele.initialiseCommunicationsPersistantesTransports();
+		m_numberPrimitiveVariables = numberPrimitiveVariables;
+    m_numberSlopeVariables = numberSlopeVariables;
+    m_numberTransportVariables = numberTransportVariables;
+		//Initialization of communications of primitive variables from resolved model
+		parallel.initializePersistentCommunicationsPrimitives();
+		//Initialization of communications of slopes for second order
+		parallel.initializePersistentCommunicationsSlopes();
+		//Initialization of communications necessary for additional physics (vectors of dim=3)
+		parallel.initializePersistentCommunicationsVector(dim);
+    //Initialization of communications of transported variables
+    parallel.initializePersistentCommunicationsTransports();
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //***********************************************************************
 
-void Parallel::calculDt(double &dt)
+void Parallel::computeDt(double &dt)
 {
 	double dt_temp = dt;
-	MPI_Allreduce(&dt_temp, &dt, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD);
+	MPI_Allreduce(&dt_temp, &dt, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
 }
 
 //***********************************************************************
 
-void Parallel::finalise(const int &lvlMax)
+void Parallel::computePMax(double &pMax, double &pMaxWall)
+{
+  double pMax_temp(pMax), pMaxWall_temp(pMaxWall);
+  MPI_Allreduce(&pMax_temp, &pMax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&pMaxWall_temp, &pMaxWall, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+}
+
+//***********************************************************************
+
+void Parallel::finalize(const int &lvlMax)
 {
 	if (Ncpu > 1) {
-		this->finaliseCommunicationsPersistantesPrimitives(lvlMax);
-		this->finaliseCommunicationsPersistantesPentes(lvlMax);
-		this->finaliseCommunicationsPersistantesVecteur(lvlMax);
-    this->finaliseCommunicationsPersistantesTransports(lvlMax);
+		this->finalizePersistentCommunicationsPrimitives(lvlMax);
+		this->finalizePersistentCommunicationsSlopes(lvlMax);
+		this->finalizePersistentCommunicationsVector(lvlMax);
+    this->finalizePersistentCommunicationsTransports(lvlMax);
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //***********************************************************************
 
-void Parallel::arreterCode()
+void Parallel::stopRun()
 {
 	MPI_Barrier(MPI_COMM_WORLD);
 	MPI_Finalize();
@@ -224,355 +238,320 @@ void Parallel::arreterCode()
 
 //***********************************************************************
 
-void Parallel::verifieEtatCPUs()
+void Parallel::verifyStateCPUs()
 {
-	//Regroupement des erreurs
+	//Gathering of errors
 	int nbErr_temp(0);
-	int nbErr(erreurs.size());
+	int nbErr(errors.size());
 	MPI_Allreduce(&nbErr, &nbErr_temp, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD);
-	//Arret si erreur sur un CPU
+	//Stop if error on one CPU
 	if (nbErr_temp) {
-		Erreurs::arretCodeApresErreur(erreurs);
+		Errors::arretCodeApresError(errors);
 	}
 }
 
 //****************************************************************************
-//************* Methodes pour toutes les variables primitives ****************
+//**************** Methods for all the primitive variables *******************
 //****************************************************************************
 
-void Parallel::initialiseCommunicationsPersistantesPrimitives()
+void Parallel::initializePersistentCommunicationsPrimitives()
 {
-  for (int voisin = 0; voisin < Ncpu; voisin++) {
-    if (m_estVoisin[voisin]) { //Si CPU voisin
-      //Determination du nombre de variables a communiquer
-      int nombreEnvoi = m_nombreVariablesPrimitives*m_nombreElementsAEnvoyerAVoisin[voisin];
-      int nombreRecoi = m_nombreVariablesPrimitives*m_nombreElementsARecevoirDeVoisin[voisin];
+  for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+    if (m_isNeighbour[neighbour]) {
+      //Determination of the number of variables to communicate
+      int numberSend = m_numberPrimitiveVariables*m_numberElementsToSendToNeighbour[neighbour];
+      int numberReceive = m_numberPrimitiveVariables*m_numberElementsToReceiveFromNeighbour[neighbour];
 
-      //Nouvelle requête d'envois et son buffer associe
-      m_reqEnvois[0][voisin] = new MPI_Request;
-      m_tamponEnv[0][voisin] = new double[nombreEnvoi];
-      MPI_Send_init(m_tamponEnv[0][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvois[0][voisin]);
+      //New sending request and its associated buffer
+      m_reqSend[0][neighbour] = new MPI_Request;
+      m_bufferSend[0][neighbour] = new double[numberSend];
+      MPI_Send_init(m_bufferSend[0][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSend[0][neighbour]);
 
-      //Nouvelle requête de receptions et son buffer associe
-      m_reqReceptions[0][voisin] = new MPI_Request;
-      m_tamponRec[0][voisin] = new double[nombreRecoi];
-      MPI_Recv_init(m_tamponRec[0][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptions[0][voisin]);
+      //New receiving request and its associated buffer
+      m_reqReceive[0][neighbour] = new MPI_Request;
+      m_bufferReceive[0][neighbour] = new double[numberReceive];
+      MPI_Recv_init(m_bufferReceive[0][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceive[0][neighbour]);
     }
   }
 }
 
 //***********************************************************************
 
-void Parallel::finaliseCommunicationsPersistantesPrimitives(const int &lvlMax)
+void Parallel::finalizePersistentCommunicationsPrimitives(const int &lvlMax)
 {
 	for (int lvl = 0; lvl <= lvlMax; lvl++) {
-		for (int voisin = 0; voisin < Ncpu; voisin++)	{
-			if (m_estVoisin[voisin]) { //Si CPU voisin
-				MPI_Request_free(m_reqEnvois[lvl][voisin]);
-				MPI_Request_free(m_reqReceptions[lvl][voisin]);
-        delete m_reqEnvois[lvl][voisin];
-        delete[] m_tamponEnv[lvl][voisin];
-        delete m_reqReceptions[lvl][voisin];
-        delete[] m_tamponRec[lvl][voisin];
+		for (int neighbour = 0; neighbour < Ncpu; neighbour++)	{
+			if (m_isNeighbour[neighbour]) {
+				MPI_Request_free(m_reqSend[lvl][neighbour]);
+				MPI_Request_free(m_reqReceive[lvl][neighbour]);
+        delete m_reqSend[lvl][neighbour];
+        delete[] m_bufferSend[lvl][neighbour];
+        delete m_reqReceive[lvl][neighbour];
+        delete[] m_bufferReceive[lvl][neighbour];
 			}
 		}
-		delete[] m_reqEnvois[lvl];
-		delete[] m_tamponEnv[lvl];
-		delete[] m_reqReceptions[lvl];
-		delete[] m_tamponRec[lvl];
+		delete[] m_reqSend[lvl];
+		delete[] m_bufferSend[lvl];
+		delete[] m_reqReceive[lvl];
+		delete[] m_bufferReceive[lvl];
 	}
-  m_reqEnvois.clear();
-  m_tamponEnv.clear();
-  m_reqReceptions.clear();
-  m_tamponRec.clear();
-
+  m_reqSend.clear();
+  m_bufferSend.clear();
+  m_reqReceive.clear();
+  m_bufferReceive.clear();
 }
 
 //***********************************************************************
 
-void Parallel::communicationsPrimitives(Cellule **cellules, Eos **eos, Prim type)
+void Parallel::communicationsPrimitives(Cell **cells, Eos **eos, Prim type)
 {
   int count(0);
   MPI_Status status;
 
-  for (int voisin = 0; voisin < Ncpu; voisin++) {
-    if (m_estVoisin[voisin]) {
-      //Prepation des envois
+  for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+    if (m_isNeighbour[neighbour]) {
+      //Prepation of sendings
       count = -1;
-      for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-				cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponPrimitives(m_tamponEnv[0][voisin], count, type);
+      for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++) {
+				cells[m_elementsToSend[neighbour][i]]->fillBufferPrimitives(m_bufferSend[0][neighbour], count, type);
       }
 
-      //Requête d'envoi
-      MPI_Start(m_reqEnvois[0][voisin]);
-      //Requête de reception
-      MPI_Start(m_reqReceptions[0][voisin]);
-      //Attente
-      MPI_Wait(m_reqEnvois[0][voisin], &status);
-      MPI_Wait(m_reqReceptions[0][voisin], &status);
+      //Sending request
+      MPI_Start(m_reqSend[0][neighbour]);
+      //Receiving request
+      MPI_Start(m_reqReceive[0][neighbour]);
+      //Waiting
+      MPI_Wait(m_reqSend[0][neighbour], &status);
+      MPI_Wait(m_reqReceive[0][neighbour], &status);
 
-      //Receptions
+      //Receivings
       count = -1;
-      for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-				cellules[m_elementsARecevoir[voisin][i]]->recupereTamponPrimitives(m_tamponRec[0][voisin], count, eos, type);
+      for (int i = 0; i < m_numberElementsToReceiveFromNeighbour[neighbour]; i++) {
+				cells[m_elementsToReceive[neighbour][i]]->getBufferPrimitives(m_bufferReceive[0][neighbour], count, eos, type);
       }
-    } //Fin voisin
+    }
   }
 }
 
 //****************************************************************************
-//******************** Methodes pour toutes les pentes ***********************
+//********************** Methods for all the slopes **************************
 //****************************************************************************
 
-void Parallel::initialiseCommunicationsPersistantesPentes()
+void Parallel::initializePersistentCommunicationsSlopes()
 {
-	for (int voisin = 0; voisin < Ncpu; voisin++)	{
-		if (m_estVoisin[voisin]) { //Si CPU voisin
-			//Determination du nombre de variables a communiquer
-			int nombreEnvoi = m_nombreVariablesPentes*m_nombreElementsAEnvoyerAVoisin[voisin];
-			int nombreRecoi = m_nombreVariablesPentes*m_nombreElementsARecevoirDeVoisin[voisin];
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++)	{
+		if (m_isNeighbour[neighbour]) {
+      //Determination of the number of variables to communicate
+			int numberSend = m_numberSlopeVariables*m_numberElementsToSendToNeighbour[neighbour];
+			int numberReceive = m_numberSlopeVariables*m_numberElementsToReceiveFromNeighbour[neighbour];
 
-			//Nouvelle requête d'envois et son buffer associe
-			m_reqEnvoisPentes[0][voisin] = new MPI_Request;
-			m_tamponEnvPentes[0][voisin] = new double[nombreEnvoi];
-			MPI_Send_init(m_tamponEnvPentes[0][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisPentes[0][voisin]);
+			//New sending request and its associated buffer
+			m_reqSendSlopes[0][neighbour] = new MPI_Request;
+			m_bufferSendSlopes[0][neighbour] = new double[numberSend];
+			MPI_Send_init(m_bufferSendSlopes[0][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendSlopes[0][neighbour]);
 
-			//Nouvelle requête de receptions et son buffer associe
-			m_reqReceptionsPentes[0][voisin] = new MPI_Request;
-			m_tamponRecPentes[0][voisin] = new double[nombreRecoi];
-			MPI_Recv_init(m_tamponRecPentes[0][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsPentes[0][voisin]);
+			//New receiving request and its associated buffer
+			m_reqReceiveSlopes[0][neighbour] = new MPI_Request;
+			m_bufferReceiveSlopes[0][neighbour] = new double[numberReceive];
+			MPI_Recv_init(m_bufferReceiveSlopes[0][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveSlopes[0][neighbour]);
 		}
 	}
 }
 
 //***********************************************************************
 
-void Parallel::finaliseCommunicationsPersistantesPentes(const int &lvlMax)
+void Parallel::finalizePersistentCommunicationsSlopes(const int &lvlMax)
 {
 	for (int lvl = 0; lvl <= lvlMax; lvl++) {
-		for (int voisin = 0; voisin < Ncpu; voisin++)	{
-			if (m_estVoisin[voisin]) { //Si CPU voisin
-				MPI_Request_free(m_reqEnvoisPentes[lvl][voisin]);
-				MPI_Request_free(m_reqReceptionsPentes[lvl][voisin]);
-        delete m_reqEnvoisPentes[lvl][voisin];
-        delete[] m_tamponEnvPentes[lvl][voisin];
-        delete m_reqReceptionsPentes[lvl][voisin];
-        delete[] m_tamponRecPentes[lvl][voisin];
+		for (int neighbour = 0; neighbour < Ncpu; neighbour++)	{
+			if (m_isNeighbour[neighbour]) {
+				MPI_Request_free(m_reqSendSlopes[lvl][neighbour]);
+				MPI_Request_free(m_reqReceiveSlopes[lvl][neighbour]);
+        delete m_reqSendSlopes[lvl][neighbour];
+        delete[] m_bufferSendSlopes[lvl][neighbour];
+        delete m_reqReceiveSlopes[lvl][neighbour];
+        delete[] m_bufferReceiveSlopes[lvl][neighbour];
 			}
 		}
-		delete[] m_reqEnvoisPentes[lvl];
-		delete[] m_tamponEnvPentes[lvl];
-		delete[] m_reqReceptionsPentes[lvl];
-		delete[] m_tamponRecPentes[lvl];
+		delete[] m_reqSendSlopes[lvl];
+		delete[] m_bufferSendSlopes[lvl];
+		delete[] m_reqReceiveSlopes[lvl];
+		delete[] m_bufferReceiveSlopes[lvl];
 	}
-  m_reqEnvoisPentes.clear();
-  m_tamponEnvPentes.clear();
-  m_reqReceptionsPentes.clear();
-  m_tamponRecPentes.clear();
+  m_reqSendSlopes.clear();
+  m_bufferSendSlopes.clear();
+  m_reqReceiveSlopes.clear();
+  m_bufferReceiveSlopes.clear();
 }
 
 //***********************************************************************
 
-void Parallel::communicationsPentes(Cellule **cellules)
+void Parallel::communicationsSlopes(Cell **cells)
 {
 	int count(0);
 	MPI_Status status;
 
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) {
-			//Prepation des envois
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//Prepation of sendings
 			count = -1;
-			for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-				cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponPentes(m_tamponEnvPentes[0][voisin], count);
+			for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++) {
+				cells[m_elementsToSend[neighbour][i]]->fillBufferSlopes(m_bufferSendSlopes[0][neighbour], count, m_whichCpuAmIForNeighbour[neighbour]);
 			}
-			
-			//Requête d'envoi
-			MPI_Start(m_reqEnvoisPentes[0][voisin]);
-			//Requête de reception
-			MPI_Start(m_reqReceptionsPentes[0][voisin]);
-			//Attente
-			MPI_Wait(m_reqEnvoisPentes[0][voisin], &status);
-			MPI_Wait(m_reqReceptionsPentes[0][voisin], &status);
+      
+			//Sending request
+			MPI_Start(m_reqSendSlopes[0][neighbour]);
+			//Receiving request
+			MPI_Start(m_reqReceiveSlopes[0][neighbour]);
+			//Waiting
+			MPI_Wait(m_reqSendSlopes[0][neighbour], &status);
+			MPI_Wait(m_reqReceiveSlopes[0][neighbour], &status);
 
-			//Receptions
+			//Receivings
 			count = -1;
-			for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-				cellules[m_elementsARecevoir[voisin][i]]->recupereTamponPentes(m_tamponRecPentes[0][voisin], count);
+			for (int i = 0; i < m_numberElementsToReceiveFromNeighbour[neighbour]; i++) {
+				cells[m_elementsToReceive[neighbour][i]]->getBufferSlopes(m_bufferReceiveSlopes[0][neighbour], count);
 			}
-		} //Fin voisin
+		}
 	}
 }
 
 //****************************************************************************
-//****************** Methodes pour une variable scalaire *********************
+//********************* Methods for a scalar variable ************************
 //****************************************************************************
 
-void Parallel::initialiseCommunicationsPersistantesScalaire()
+void Parallel::initializePersistentCommunicationsScalar()
 {
-  int nombre;
+  int number;
 
-  for (int voisin = 0; voisin < Ncpu; voisin++) {
-    if (m_estVoisin[voisin]) { //Si CPU voisin
-      //Determination du nombre de variables a communiquer
-      nombre = 1; // 1 variable scalaire
-      int nombreEnvoi = nombre*m_nombreElementsAEnvoyerAVoisin[voisin];
-      int nombreRecoi = nombre*m_nombreElementsARecevoirDeVoisin[voisin];
+  for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+    if (m_isNeighbour[neighbour]) {
+      //Determination of the number of variables to communicate
+      number = 1; //1 scalar variable
+      int numberSend = number*m_numberElementsToSendToNeighbour[neighbour];
+      int numberReceive = number*m_numberElementsToReceiveFromNeighbour[neighbour];
 
-      //Nouvelle requête d'envois et son buffer associe
-      m_reqEnvoisScalaire[0][voisin] = new MPI_Request;
-      m_tamponEnvScalaire[0][voisin] = new double[nombreEnvoi];
-      MPI_Send_init(m_tamponEnvScalaire[0][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisScalaire[0][voisin]);
+      //New sending request and its associated buffer
+      m_reqSendScalar[0][neighbour] = new MPI_Request;
+      m_bufferSendScalar[0][neighbour] = new double[numberSend];
+      MPI_Send_init(m_bufferSendScalar[0][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendScalar[0][neighbour]);
 
-      //Nouvelle requête de receptions et son buffer associe
-      m_reqReceptionsScalaire[0][voisin] = new MPI_Request;
-      m_tamponRecScalaire[0][voisin] = new double[nombreRecoi];
-      MPI_Recv_init(m_tamponRecScalaire[0][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsScalaire[0][voisin]);
+      //New receiving request and its associated buffer
+      m_reqReceiveScalar[0][neighbour] = new MPI_Request;
+      m_bufferReceiveScalar[0][neighbour] = new double[numberReceive];
+      MPI_Recv_init(m_bufferReceiveScalar[0][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveScalar[0][neighbour]);
     }
   }
 }
 
 //***********************************************************************
 
-void Parallel::finaliseCommunicationsPersistantesScalaire(const int &lvlMax)
+void Parallel::finalizePersistentCommunicationsScalar(const int &lvlMax)
 {
 	for (int lvl = 0; lvl <= lvlMax; lvl++) {
-		for (int voisin = 0; voisin < Ncpu; voisin++)	{
-			if (m_estVoisin[voisin]) { //Si CPU voisin
-				MPI_Request_free(m_reqEnvoisScalaire[lvl][voisin]);
-				MPI_Request_free(m_reqReceptionsScalaire[lvl][voisin]);
-        delete m_reqEnvoisScalaire[lvl][voisin];
-        delete[] m_tamponEnvScalaire[lvl][voisin];
-        delete m_reqReceptionsScalaire[lvl][voisin];
-        delete[] m_tamponRecScalaire[lvl][voisin];
+		for (int neighbour = 0; neighbour < Ncpu; neighbour++)	{
+			if (m_isNeighbour[neighbour]) {
+				MPI_Request_free(m_reqSendScalar[lvl][neighbour]);
+				MPI_Request_free(m_reqReceiveScalar[lvl][neighbour]);
+        delete m_reqSendScalar[lvl][neighbour];
+        delete[] m_bufferSendScalar[lvl][neighbour];
+        delete m_reqReceiveScalar[lvl][neighbour];
+        delete[] m_bufferReceiveScalar[lvl][neighbour];
 			}
 		}
-		delete[] m_reqEnvoisScalaire[lvl];
-		delete[] m_tamponEnvScalaire[lvl];
-		delete[] m_reqReceptionsScalaire[lvl];
-		delete[] m_tamponRecScalaire[lvl];
+		delete[] m_reqSendScalar[lvl];
+		delete[] m_bufferSendScalar[lvl];
+		delete[] m_reqReceiveScalar[lvl];
+		delete[] m_bufferReceiveScalar[lvl];
 	}
-  m_reqEnvoisScalaire.clear();
-  m_tamponEnvScalaire.clear();
-  m_reqReceptionsScalaire.clear();
-  m_tamponRecScalaire.clear();
-}
-
-//***********************************************************************
-
-void Parallel::communicationsScalaire(Cellule **cellules, string nomScalaire)
-{
-  int count(0);
-  MPI_Status status;
-
-  for (int voisin = 0; voisin < Ncpu; voisin++) {
-    if (m_estVoisin[voisin]) {
-      //Prepation des envois
-      count = -1;
-      for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-        //Remplissage m_tamponEnvScalaire automatique selon nom de la variable
-				cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponScalaire(m_tamponEnvScalaire[0][voisin], count, nomScalaire);
-      }
-
-      //Requête d'envoi
-      MPI_Start(m_reqEnvoisScalaire[0][voisin]);
-      //Requête de reception
-      MPI_Start(m_reqReceptionsScalaire[0][voisin]);
-      //Attente
-      MPI_Wait(m_reqEnvoisScalaire[0][voisin], &status);
-      MPI_Wait(m_reqReceptionsScalaire[0][voisin], &status);
-
-      //Receptions
-      count = -1;
-      for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-        //Remplissage m_tamponRecGrad automatique selon coordonnees du gradient
-				cellules[m_elementsARecevoir[voisin][i]]->recupereTamponScalaire(m_tamponRecScalaire[0][voisin], count, nomScalaire);
-      }
-    } //Fin voisin
-  }
+  m_reqSendScalar.clear();
+  m_bufferSendScalar.clear();
+  m_reqReceiveScalar.clear();
+  m_bufferReceiveScalar.clear();
 }
 
 //****************************************************************************
-//********************* Methodes pour les vecteurs ***************************
+//*********************** Methods for the vectors ****************************
 //****************************************************************************
 
-void Parallel::initialiseCommunicationsPersistantesVecteur(const int &dim)
+void Parallel::initializePersistentCommunicationsVector(const int &dim)
 {
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) { //Si CPU voisin
-			//Determination du nombre de variables a communiquer, autant de variables que la dimension (1,2 ou 3)
-			int nombreEnvoi = dim*m_nombreElementsAEnvoyerAVoisin[voisin];
-			int nombreRecoi = dim*m_nombreElementsARecevoirDeVoisin[voisin];
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//Determination of the number of variables to communicate, as much variables as the dimension (1,2 or 3)
+			int numberSend = dim*m_numberElementsToSendToNeighbour[neighbour];
+			int numberReceive = dim*m_numberElementsToReceiveFromNeighbour[neighbour];
 
-			//Nouvelle requête d'envois et son buffer associe
-			m_reqEnvoisVecteur[0][voisin] = new MPI_Request;
-			m_tamponEnvVecteur[0][voisin] = new double[nombreEnvoi];
-			MPI_Send_init(m_tamponEnvVecteur[0][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisVecteur[0][voisin]);
+			//New sending request and its associated buffer
+			m_reqSendVector[0][neighbour] = new MPI_Request;
+			m_bufferSendVector[0][neighbour] = new double[numberSend];
+			MPI_Send_init(m_bufferSendVector[0][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendVector[0][neighbour]);
 
-			//Nouvelle requête de receptions et son buffer associe
-			m_reqReceptionsVecteur[0][voisin] = new MPI_Request;
-			m_tamponRecVecteur[0][voisin] = new double[nombreRecoi];
-			MPI_Recv_init(m_tamponRecVecteur[0][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsVecteur[0][voisin]);
+			//New receiving request and its associated buffer
+			m_reqReceiveVector[0][neighbour] = new MPI_Request;
+			m_bufferReceiveVector[0][neighbour] = new double[numberReceive];
+			MPI_Recv_init(m_bufferReceiveVector[0][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveVector[0][neighbour]);
 		}
 	}
 }
 
 //***********************************************************************
 
-void Parallel::finaliseCommunicationsPersistantesVecteur(const int &lvlMax)
+void Parallel::finalizePersistentCommunicationsVector(const int &lvlMax)
 {
 	for (int lvl = 0; lvl <= lvlMax; lvl++) {
-		for (int voisin = 0; voisin < Ncpu; voisin++)	{
-			if (m_estVoisin[voisin]) { //Si CPU voisin
-				MPI_Request_free(m_reqEnvoisVecteur[lvl][voisin]);
-				MPI_Request_free(m_reqReceptionsVecteur[lvl][voisin]);
-        delete m_reqEnvoisVecteur[lvl][voisin];
-        delete[] m_tamponEnvVecteur[lvl][voisin];
-        delete m_reqReceptionsVecteur[lvl][voisin];
-        delete[] m_tamponRecVecteur[lvl][voisin];
+		for (int neighbour = 0; neighbour < Ncpu; neighbour++)	{
+			if (m_isNeighbour[neighbour]) {
+				MPI_Request_free(m_reqSendVector[lvl][neighbour]);
+				MPI_Request_free(m_reqReceiveVector[lvl][neighbour]);
+        delete m_reqSendVector[lvl][neighbour];
+        delete[] m_bufferSendVector[lvl][neighbour];
+        delete m_reqReceiveVector[lvl][neighbour];
+        delete[] m_bufferReceiveVector[lvl][neighbour];
 			}
 		}
-		delete[] m_reqEnvoisVecteur[lvl];
-		delete[] m_tamponEnvVecteur[lvl];
-		delete[] m_reqReceptionsVecteur[lvl];
-		delete[] m_tamponRecVecteur[lvl];
+		delete[] m_reqSendVector[lvl];
+		delete[] m_bufferSendVector[lvl];
+		delete[] m_reqReceiveVector[lvl];
+		delete[] m_bufferReceiveVector[lvl];
 	}
-  m_reqEnvoisVecteur.clear();
-  m_tamponEnvVecteur.clear();
-  m_reqReceptionsVecteur.clear();
-  m_tamponRecVecteur.clear();
+  m_reqSendVector.clear();
+  m_bufferSendVector.clear();
+  m_reqReceiveVector.clear();
+  m_bufferReceiveVector.clear();
 }
 
 //***********************************************************************
 
-void Parallel::communicationsVecteur(Cellule **cellules, string nomVecteur, const int &dim, int num, int indice)
+void Parallel::communicationsVector(Cell **cells, string nameVector, const int &dim, int num, int index)
 {
 	int count(0);
 	MPI_Status status;
 
-	for (int voisin = 0; voisin < Ncpu; voisin++)	{
-		if (m_estVoisin[voisin]) {
-			//Prepation des envois
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++)	{
+		if (m_isNeighbour[neighbour]) {
+			//Prepation of sendings
 			count = -1;
-			for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++)	{
-			  //Remplissage m_tamponEnvVecteur automatique selon coordonnees du gradient
-				cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponVecteur(m_tamponEnvVecteur[0][voisin], count, dim, nomVecteur, num, indice);
+			for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++)	{
+			  //Automatic filing of m_bufferSendVector in function of the gradient coordinates
+				cells[m_elementsToSend[neighbour][i]]->fillBufferVector(m_bufferSendVector[0][neighbour], count, dim, nameVector, num, index);
 			}
 
-			//Requête d'envoi
-			MPI_Start(m_reqEnvoisVecteur[0][voisin]);
-			//Requête de reception
-			MPI_Start(m_reqReceptionsVecteur[0][voisin]);
-			//Attente
-			MPI_Wait(m_reqEnvoisVecteur[0][voisin], &status);
-			MPI_Wait(m_reqReceptionsVecteur[0][voisin], &status);
+			//Sending request
+			MPI_Start(m_reqSendVector[0][neighbour]);
+			//Receiving request
+			MPI_Start(m_reqReceiveVector[0][neighbour]);
+			//Waiting
+			MPI_Wait(m_reqSendVector[0][neighbour], &status);
+			MPI_Wait(m_reqReceiveVector[0][neighbour], &status);
 
-			//Receptions
+			//Receivings
 			count = -1;
-			for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++)	{
-			  //Remplissage m_tamponRecVecteur automatique selon coordonnees du gradient
-				cellules[m_elementsARecevoir[voisin][i]]->recupereTamponVecteur(m_tamponRecVecteur[0][voisin], count, dim, nomVecteur, num, indice);
+			for (int i = 0; i < m_numberElementsToReceiveFromNeighbour[neighbour]; i++)	{
+			  //Automatic filing of m_bufferReceiveVector in function of the gradient coordinates
+				cells[m_elementsToReceive[neighbour][i]]->getBufferVector(m_bufferReceiveVector[0][neighbour], count, dim, nameVector, num, index);
 			}
-		} //Fin voisin
+		} //End neighbour
 	}
 }
 
@@ -580,83 +559,83 @@ void Parallel::communicationsVecteur(Cellule **cellules, string nomVecteur, cons
 //************ Methodes pour toutes les variables transportees ***************
 //****************************************************************************
 
-void Parallel::initialiseCommunicationsPersistantesTransports()
+void Parallel::initializePersistentCommunicationsTransports()
 {
-  for (int voisin = 0; voisin < Ncpu; voisin++) {
-    if (m_estVoisin[voisin]) { //Si CPU voisin
-      //Determination du nombre de variables a communiquer
-      int nombreEnvoi = m_nombreVariablesTransports*m_nombreElementsAEnvoyerAVoisin[voisin];
-      int nombreRecoi = m_nombreVariablesTransports*m_nombreElementsARecevoirDeVoisin[voisin];
+  for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+    if (m_isNeighbour[neighbour]) {
+      //Determination of the number of variables to communicate
+      int numberSend = m_numberTransportVariables*m_numberElementsToSendToNeighbour[neighbour];
+      int numberReceive = m_numberTransportVariables*m_numberElementsToReceiveFromNeighbour[neighbour];
 
-      //Nouvelle requête d'envois et son buffer associe
-      m_reqEnvoisTransports[0][voisin] = new MPI_Request;
-      m_tamponEnvTransports[0][voisin] = new double[nombreEnvoi];
-      MPI_Send_init(m_tamponEnvTransports[0][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisTransports[0][voisin]);
+      //New sending request and its associated buffer
+      m_reqSendTransports[0][neighbour] = new MPI_Request;
+      m_bufferSendTransports[0][neighbour] = new double[numberSend];
+      MPI_Send_init(m_bufferSendTransports[0][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendTransports[0][neighbour]);
 
-      //Nouvelle requête de receptions et son buffer associe
-      m_reqReceptionsTransports[0][voisin] = new MPI_Request;
-      m_tamponRecTransports[0][voisin] = new double[nombreRecoi];
-      MPI_Recv_init(m_tamponRecTransports[0][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsTransports[0][voisin]);
+      //New receiving request and its associated buffer
+      m_reqReceiveTransports[0][neighbour] = new MPI_Request;
+      m_bufferReceiveTransports[0][neighbour] = new double[numberReceive];
+      MPI_Recv_init(m_bufferReceiveTransports[0][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveTransports[0][neighbour]);
     }
   }
 }
 
 //***********************************************************************
 
-void Parallel::finaliseCommunicationsPersistantesTransports(const int &lvlMax)
+void Parallel::finalizePersistentCommunicationsTransports(const int &lvlMax)
 {
   for (int lvl = 0; lvl <= lvlMax; lvl++) {
-    for (int voisin = 0; voisin < Ncpu; voisin++) {
-      if (m_estVoisin[voisin]) { //Si CPU voisin
-        MPI_Request_free(m_reqEnvoisTransports[lvl][voisin]);
-        MPI_Request_free(m_reqReceptionsTransports[lvl][voisin]);
-        delete m_reqEnvoisTransports[lvl][voisin];
-        delete[] m_tamponEnvTransports[lvl][voisin];
-        delete m_reqReceptionsTransports[lvl][voisin];
-        delete[] m_tamponRecTransports[lvl][voisin];
+    for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+      if (m_isNeighbour[neighbour]) {
+        MPI_Request_free(m_reqSendTransports[lvl][neighbour]);
+        MPI_Request_free(m_reqReceiveTransports[lvl][neighbour]);
+        delete m_reqSendTransports[lvl][neighbour];
+        delete[] m_bufferSendTransports[lvl][neighbour];
+        delete m_reqReceiveTransports[lvl][neighbour];
+        delete[] m_bufferReceiveTransports[lvl][neighbour];
       }
     }
-    delete[] m_reqEnvoisTransports[lvl];
-    delete[] m_tamponEnvTransports[lvl];
-    delete[] m_reqReceptionsTransports[lvl];
-    delete[] m_tamponRecTransports[lvl];
+    delete[] m_reqSendTransports[lvl];
+    delete[] m_bufferSendTransports[lvl];
+    delete[] m_reqReceiveTransports[lvl];
+    delete[] m_bufferReceiveTransports[lvl];
   }
-  m_reqEnvoisTransports.clear();
-  m_tamponEnvTransports.clear();
-  m_reqReceptionsTransports.clear();
-  m_tamponRecTransports.clear();
+  m_reqSendTransports.clear();
+  m_bufferSendTransports.clear();
+  m_reqReceiveTransports.clear();
+  m_bufferReceiveTransports.clear();
 
 }
 
 //***********************************************************************
 
-void Parallel::communicationsTransports(Cellule **cellules)
+void Parallel::communicationsTransports(Cell **cells)
 {
   int count(0);
   MPI_Status status;
 
-  for (int voisin = 0; voisin < Ncpu; voisin++) {
-    if (m_estVoisin[voisin]) {
-      //Prepation des envois
+  for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+    if (m_isNeighbour[neighbour]) {
+      //Prepation of sendings
       count = -1;
-      for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-        cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponTransports(m_tamponEnvTransports[0][voisin], count);
+      for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++) {
+        cells[m_elementsToSend[neighbour][i]]->fillBufferTransports(m_bufferSendTransports[0][neighbour], count);
       }
 
-      //Requête d'envoi
-      MPI_Start(m_reqEnvoisTransports[0][voisin]);
-      //Requête de reception
-      MPI_Start(m_reqReceptionsTransports[0][voisin]);
-      //Attente
-      MPI_Wait(m_reqEnvoisTransports[0][voisin], &status);
-      MPI_Wait(m_reqReceptionsTransports[0][voisin], &status);
+      //Sending request
+      MPI_Start(m_reqSendTransports[0][neighbour]);
+      //Receiving request
+      MPI_Start(m_reqReceiveTransports[0][neighbour]);
+      //Waiting
+      MPI_Wait(m_reqSendTransports[0][neighbour], &status);
+      MPI_Wait(m_reqReceiveTransports[0][neighbour], &status);
 
-      //Receptions
+      //Receivings
       count = -1;
-      for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-        cellules[m_elementsARecevoir[voisin][i]]->recupereTamponTransports(m_tamponRecTransports[0][voisin], count);
+      for (int i = 0; i < m_numberElementsToReceiveFromNeighbour[neighbour]; i++) {
+        cells[m_elementsToReceive[neighbour][i]]->getBufferTransports(m_bufferReceiveTransports[0][neighbour], count);
       }
-    } //Fin voisin
+    }
   }
 }
 
@@ -664,168 +643,168 @@ void Parallel::communicationsTransports(Cellule **cellules)
 //******************** Methodes pour les variables AMR ***********************
 //****************************************************************************
 
-void Parallel::initialiseCommunicationsPersistantesAMR(const int &nombreVariablesPrimitives, const int &nombreVariablesPentes, const int &nombreVariablesTransports, const int &dim, const int &lvlMax)
+void Parallel::initializePersistentCommunicationsAMR(const int &numberPrimitiveVariables, const int &numberSlopeVariables, const int &numberTransportVariables, const int &dim, const int &lvlMax)
 {
 	if (Ncpu > 1) {
-		m_nombreVariablesPrimitives = nombreVariablesPrimitives;
-		m_nombreVariablesPentes = nombreVariablesPentes;
-    m_nombreVariablesTransports = nombreVariablesTransports;
-		//Initialisation des communications des variables primitives du modele resolu
-		Calcul_Parallele.initialiseCommunicationsPersistantesPrimitives();
-		//Initialisation des communications des pentes pour l'ordre 2
-		Calcul_Parallele.initialiseCommunicationsPersistantesPentes();
-		//Initialisation des communications necessaires aux physiques additionelles (vecteurs de dim=3)
-		Calcul_Parallele.initialiseCommunicationsPersistantesVecteur(dim);
-    //Initialisation des communications des variables transportees
-    Calcul_Parallele.initialiseCommunicationsPersistantesTransports();
-		//Initialisation des communications pour les variables AMR
-		Calcul_Parallele.initialiseCommunicationsPersistantesXi();
-		Calcul_Parallele.initialiseCommunicationsPersistantesSplit();
-		Calcul_Parallele.initialiseCommunicationsPersistantesNombreCellulesGhost();
-		//Initialisation des communications pour les niveaux superieurs a 0
-		Calcul_Parallele.initialiseCommunicationsPersistantesNiveauxAMR(lvlMax);
+		m_numberPrimitiveVariables = numberPrimitiveVariables;
+		m_numberSlopeVariables = numberSlopeVariables;
+    m_numberTransportVariables = numberTransportVariables;
+		//Initialization of communications of primitive variables from resolved model
+		parallel.initializePersistentCommunicationsPrimitives();
+		//Initialization of communications of slopes for second order
+		parallel.initializePersistentCommunicationsSlopes();
+		//Initialization of communications necessary for additional physics (vectors of dim=3)
+		parallel.initializePersistentCommunicationsVector(dim);
+    //Initialization of communications of transported variables
+    parallel.initializePersistentCommunicationsTransports();
+		//Initialization of communications for AMR variables
+		parallel.initializePersistentCommunicationsXi();
+		parallel.initializePersistentCommunicationsSplit();
+		parallel.initializePersistentCommunicationsNumberGhostCells();
+		//Initialization of communications for the levels superior to 0
+		parallel.initializePersistentCommunicationsLvlAMR(lvlMax);
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //***********************************************************************
 
-void Parallel::initialiseCommunicationsPersistantesNiveauxAMR(const int &lvlMax)
+void Parallel::initializePersistentCommunicationsLvlAMR(const int &lvlMax)
 {
-	//Extension des variables paralleles au niveau AMR maximum. On commence a 1, le niveau 0 etant deja initialise
+	//Extension of parallel variables to the maximum AMR level. We starts at 1, the level 0 being already initialized
 	for (int lvl = 1; lvl <= lvlMax; lvl++) {
-		m_tamponEnv.push_back(new double*[Ncpu]);
-		m_tamponRec.push_back(new double*[Ncpu]);
-		m_tamponEnvPentes.push_back(new double*[Ncpu]);
-		m_tamponRecPentes.push_back(new double*[Ncpu]);
-		m_tamponEnvVecteur.push_back(new double*[Ncpu]);
-		m_tamponRecVecteur.push_back(new double*[Ncpu]);
-    m_tamponEnvTransports.push_back(new double*[Ncpu]);
-    m_tamponRecTransports.push_back(new double*[Ncpu]);
-		m_tamponEnvXi.push_back(new double*[Ncpu]);
-		m_tamponRecXi.push_back(new double*[Ncpu]);
-		m_tamponEnvSplit.push_back(new bool*[Ncpu]);
-		m_tamponRecSplit.push_back(new bool*[Ncpu]);
+		m_bufferSend.push_back(new double*[Ncpu]);
+		m_bufferReceive.push_back(new double*[Ncpu]);
+		m_bufferSendSlopes.push_back(new double*[Ncpu]);
+		m_bufferReceiveSlopes.push_back(new double*[Ncpu]);
+		m_bufferSendVector.push_back(new double*[Ncpu]);
+		m_bufferReceiveVector.push_back(new double*[Ncpu]);
+    m_bufferSendTransports.push_back(new double*[Ncpu]);
+    m_bufferReceiveTransports.push_back(new double*[Ncpu]);
+		m_bufferSendXi.push_back(new double*[Ncpu]);
+		m_bufferReceiveXi.push_back(new double*[Ncpu]);
+		m_bufferSendSplit.push_back(new bool*[Ncpu]);
+		m_bufferReceiveSplit.push_back(new bool*[Ncpu]);
 
-		m_reqEnvois.push_back(new MPI_Request*[Ncpu]);
-		m_reqReceptions.push_back(new MPI_Request*[Ncpu]);
-		m_reqEnvoisPentes.push_back(new MPI_Request*[Ncpu]);
-		m_reqReceptionsPentes.push_back(new MPI_Request*[Ncpu]);
-		m_reqEnvoisVecteur.push_back(new MPI_Request*[Ncpu]);
-		m_reqReceptionsVecteur.push_back(new MPI_Request*[Ncpu]);
-    m_reqEnvoisTransports.push_back(new MPI_Request*[Ncpu]);
-    m_reqReceptionsTransports.push_back(new MPI_Request*[Ncpu]);
-		m_reqEnvoisXi.push_back(new MPI_Request*[Ncpu]);
-		m_reqReceptionsXi.push_back(new MPI_Request*[Ncpu]);
-		m_reqEnvoisSplit.push_back(new MPI_Request*[Ncpu]);
-		m_reqReceptionsSplit.push_back(new MPI_Request*[Ncpu]);
+		m_reqSend.push_back(new MPI_Request*[Ncpu]);
+		m_reqReceive.push_back(new MPI_Request*[Ncpu]);
+		m_reqSendSlopes.push_back(new MPI_Request*[Ncpu]);
+		m_reqReceiveSlopes.push_back(new MPI_Request*[Ncpu]);
+		m_reqSendVector.push_back(new MPI_Request*[Ncpu]);
+		m_reqReceiveVector.push_back(new MPI_Request*[Ncpu]);
+    m_reqSendTransports.push_back(new MPI_Request*[Ncpu]);
+    m_reqReceiveTransports.push_back(new MPI_Request*[Ncpu]);
+		m_reqSendXi.push_back(new MPI_Request*[Ncpu]);
+		m_reqReceiveXi.push_back(new MPI_Request*[Ncpu]);
+		m_reqSendSplit.push_back(new MPI_Request*[Ncpu]);
+		m_reqReceiveSplit.push_back(new MPI_Request*[Ncpu]);
 
 		for (int i = 0; i < Ncpu; i++) {
-			m_tamponEnv[lvl][i] = NULL;
-			m_tamponRec[lvl][i] = NULL;
-			m_reqEnvois[lvl][i] = NULL;
-			m_reqReceptions[lvl][i] = NULL;
-			m_tamponEnvPentes[lvl][i] = NULL;
-			m_tamponRecPentes[lvl][i] = NULL;
-			m_reqEnvoisPentes[lvl][i] = NULL;
-			m_reqReceptionsPentes[lvl][i] = NULL;
-			m_tamponEnvVecteur[lvl][i] = NULL;
-			m_tamponRecVecteur[lvl][i] = NULL;
-			m_reqEnvoisVecteur[lvl][i] = NULL;
-			m_reqReceptionsVecteur[lvl][i] = NULL;
-      m_tamponEnvTransports[lvl][i] = NULL;
-      m_tamponRecTransports[lvl][i] = NULL;
-      m_reqEnvoisTransports[lvl][i] = NULL;
-      m_reqReceptionsTransports[lvl][i] = NULL;
-			m_tamponEnvXi[lvl][i] = NULL;
-			m_tamponRecXi[lvl][i] = NULL;
-			m_reqEnvoisXi[lvl][i] = NULL;
-			m_reqReceptionsXi[lvl][i] = NULL;
-			m_tamponEnvSplit[lvl][i] = NULL;
-			m_tamponRecSplit[lvl][i] = NULL;
-			m_reqEnvoisSplit[lvl][i] = NULL;
-			m_reqReceptionsSplit[lvl][i] = NULL;
+			m_bufferSend[lvl][i] = NULL;
+			m_bufferReceive[lvl][i] = NULL;
+			m_reqSend[lvl][i] = NULL;
+			m_reqReceive[lvl][i] = NULL;
+			m_bufferSendSlopes[lvl][i] = NULL;
+			m_bufferReceiveSlopes[lvl][i] = NULL;
+			m_reqSendSlopes[lvl][i] = NULL;
+			m_reqReceiveSlopes[lvl][i] = NULL;
+			m_bufferSendVector[lvl][i] = NULL;
+			m_bufferReceiveVector[lvl][i] = NULL;
+			m_reqSendVector[lvl][i] = NULL;
+			m_reqReceiveVector[lvl][i] = NULL;
+      m_bufferSendTransports[lvl][i] = NULL;
+      m_bufferReceiveTransports[lvl][i] = NULL;
+      m_reqSendTransports[lvl][i] = NULL;
+      m_reqReceiveTransports[lvl][i] = NULL;
+			m_bufferSendXi[lvl][i] = NULL;
+			m_bufferReceiveXi[lvl][i] = NULL;
+			m_reqSendXi[lvl][i] = NULL;
+			m_reqReceiveXi[lvl][i] = NULL;
+			m_bufferSendSplit[lvl][i] = NULL;
+			m_bufferReceiveSplit[lvl][i] = NULL;
+			m_reqSendSplit[lvl][i] = NULL;
+			m_reqReceiveSplit[lvl][i] = NULL;
 		}
 	}
 
-	//Initialisation des envois et receptions pour les couples de CPU voisins et pour chaque niveau AMR
-	int nombreEnvoi(0);
-	int nombreRecoi(0);
+	//Initialization of sendings and receivings for the couples of neighboring CPU and for each AMR level
+	int numberSend(0);
+	int numberReceive(0);
 
 	for (int lvl = 1; lvl <= lvlMax; lvl++) {
-		for (int voisin = 0; voisin < Ncpu; voisin++) {
-			if (m_estVoisin[voisin]) { //Si CPU voisin
-				//Variable Primitives
+		for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+			if (m_isNeighbour[neighbour]) {
+				//Primitive variables
 				//-------------------
-				//Nouvelle requête d'envois et son buffer associe
-				m_reqEnvois[lvl][voisin] = new MPI_Request;
-				m_tamponEnv[lvl][voisin] = new double[nombreEnvoi];
-				MPI_Send_init(m_tamponEnv[lvl][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvois[lvl][voisin]);
+				//New sending request and its associated buffer
+				m_reqSend[lvl][neighbour] = new MPI_Request;
+				m_bufferSend[lvl][neighbour] = new double[numberSend];
+				MPI_Send_init(m_bufferSend[lvl][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSend[lvl][neighbour]);
 
-				//Nouvelle requête de receptions et son buffer associe
-				m_reqReceptions[lvl][voisin] = new MPI_Request;
-				m_tamponRec[lvl][voisin] = new double[nombreRecoi];
-				MPI_Recv_init(m_tamponRec[lvl][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptions[lvl][voisin]);
+				//New receiving request and its associated buffer
+				m_reqReceive[lvl][neighbour] = new MPI_Request;
+				m_bufferReceive[lvl][neighbour] = new double[numberReceive];
+				MPI_Recv_init(m_bufferReceive[lvl][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceive[lvl][neighbour]);
 
-				//Variable Pentes
+				//Slope variables
 				//---------------
-				//Nouvelle requête d'envois et son buffer associe
-				m_reqEnvoisPentes[lvl][voisin] = new MPI_Request;
-				m_tamponEnvPentes[lvl][voisin] = new double[nombreEnvoi];
-				MPI_Send_init(m_tamponEnvPentes[lvl][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisPentes[lvl][voisin]);
+				//New sending request and its associated buffer
+				m_reqSendSlopes[lvl][neighbour] = new MPI_Request;
+				m_bufferSendSlopes[lvl][neighbour] = new double[numberSend];
+				MPI_Send_init(m_bufferSendSlopes[lvl][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendSlopes[lvl][neighbour]);
 
-				//Nouvelle requête de receptions et son buffer associe
-				m_reqReceptionsPentes[lvl][voisin] = new MPI_Request;
-				m_tamponRecPentes[lvl][voisin] = new double[nombreRecoi];
-				MPI_Recv_init(m_tamponRecPentes[lvl][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsPentes[lvl][voisin]);
+				//New receiving request and its associated buffer
+				m_reqReceiveSlopes[lvl][neighbour] = new MPI_Request;
+				m_bufferReceiveSlopes[lvl][neighbour] = new double[numberReceive];
+				MPI_Recv_init(m_bufferReceiveSlopes[lvl][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveSlopes[lvl][neighbour]);
 
-				//Variable Vecteur
+				//Vector variables
 				//----------------
-				//Nouvelle requête d'envois et son buffer associe
-				m_reqEnvoisVecteur[lvl][voisin] = new MPI_Request;
-				m_tamponEnvVecteur[lvl][voisin] = new double[nombreEnvoi];
-				MPI_Send_init(m_tamponEnvVecteur[lvl][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisVecteur[lvl][voisin]);
+				//New sending request and its associated buffer
+				m_reqSendVector[lvl][neighbour] = new MPI_Request;
+				m_bufferSendVector[lvl][neighbour] = new double[numberSend];
+				MPI_Send_init(m_bufferSendVector[lvl][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendVector[lvl][neighbour]);
 
-				//Nouvelle requête de receptions et son buffer associe
-				m_reqReceptionsVecteur[lvl][voisin] = new MPI_Request;
-				m_tamponRecVecteur[lvl][voisin] = new double[nombreRecoi];
-				MPI_Recv_init(m_tamponRecVecteur[lvl][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsVecteur[lvl][voisin]);
+				//New receiving request and its associated buffer
+				m_reqReceiveVector[lvl][neighbour] = new MPI_Request;
+				m_bufferReceiveVector[lvl][neighbour] = new double[numberReceive];
+				MPI_Recv_init(m_bufferReceiveVector[lvl][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveVector[lvl][neighbour]);
 
-        //Variable Transportees
+        //Transported variables
         //---------------------
-        //Nouvelle requête d'envois et son buffer associe
-        m_reqEnvoisTransports[lvl][voisin] = new MPI_Request;
-        m_tamponEnvTransports[lvl][voisin] = new double[nombreEnvoi];
-        MPI_Send_init(m_tamponEnvTransports[lvl][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisTransports[lvl][voisin]);
+        //New sending request and its associated buffer
+        m_reqSendTransports[lvl][neighbour] = new MPI_Request;
+        m_bufferSendTransports[lvl][neighbour] = new double[numberSend];
+        MPI_Send_init(m_bufferSendTransports[lvl][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendTransports[lvl][neighbour]);
 
-        //Nouvelle requête de receptions et son buffer associe
-        m_reqReceptionsTransports[lvl][voisin] = new MPI_Request;
-        m_tamponRecTransports[lvl][voisin] = new double[nombreRecoi];
-        MPI_Recv_init(m_tamponRecTransports[lvl][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsTransports[lvl][voisin]);
+        //New receiving request and its associated buffer
+        m_reqReceiveTransports[lvl][neighbour] = new MPI_Request;
+        m_bufferReceiveTransports[lvl][neighbour] = new double[numberReceive];
+        MPI_Recv_init(m_bufferReceiveTransports[lvl][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveTransports[lvl][neighbour]);
 
-				//Variable Xi
+				//Xi variable
 				//-----------
-				//Nouvelle requête d'envois et son buffer associe
-				m_reqEnvoisXi[lvl][voisin] = new MPI_Request;
-				m_tamponEnvXi[lvl][voisin] = new double[nombreEnvoi];
-				MPI_Send_init(m_tamponEnvXi[lvl][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisXi[lvl][voisin]);
+				//New sending request and its associated buffer
+				m_reqSendXi[lvl][neighbour] = new MPI_Request;
+				m_bufferSendXi[lvl][neighbour] = new double[numberSend];
+				MPI_Send_init(m_bufferSendXi[lvl][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendXi[lvl][neighbour]);
 
-				//Nouvelle requête de receptions et son buffer associe
-				m_reqReceptionsXi[lvl][voisin] = new MPI_Request;
-				m_tamponRecXi[lvl][voisin] = new double[nombreRecoi];
-				MPI_Recv_init(m_tamponRecXi[lvl][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsXi[lvl][voisin]);
+				//New receiving request and its associated buffer
+				m_reqReceiveXi[lvl][neighbour] = new MPI_Request;
+				m_bufferReceiveXi[lvl][neighbour] = new double[numberReceive];
+				MPI_Recv_init(m_bufferReceiveXi[lvl][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveXi[lvl][neighbour]);
 
-				//Variable Split
+				//Split variable
 				//--------------
-				//Nouvelle requête d'envois et son buffer associe
-				m_reqEnvoisSplit[lvl][voisin] = new MPI_Request;
-				m_tamponEnvSplit[lvl][voisin] = new bool[nombreEnvoi];
-				MPI_Send_init(m_tamponEnvSplit[lvl][voisin], nombreEnvoi, MPI_C_BOOL, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisSplit[lvl][voisin]);
+				//New sending request and its associated buffer
+				m_reqSendSplit[lvl][neighbour] = new MPI_Request;
+				m_bufferSendSplit[lvl][neighbour] = new bool[numberSend];
+				MPI_Send_init(m_bufferSendSplit[lvl][neighbour], numberSend, MPI_C_BOOL, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendSplit[lvl][neighbour]);
 
-				//Nouvelle requête de receptions et son buffer associe
-				m_reqReceptionsSplit[lvl][voisin] = new MPI_Request;
-				m_tamponRecSplit[lvl][voisin] = new bool[nombreRecoi];
-				MPI_Recv_init(m_tamponRecSplit[lvl][voisin], nombreRecoi, MPI_C_BOOL, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsSplit[lvl][voisin]);
+				//New receiving request and its associated buffer
+				m_reqReceiveSplit[lvl][neighbour] = new MPI_Request;
+				m_bufferReceiveSplit[lvl][neighbour] = new bool[numberReceive];
+				MPI_Recv_init(m_bufferReceiveSplit[lvl][neighbour], numberReceive, MPI_C_BOOL, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveSplit[lvl][neighbour]);
 			}
 		}
 	}
@@ -833,621 +812,526 @@ void Parallel::initialiseCommunicationsPersistantesNiveauxAMR(const int &lvlMax)
 
 //***********************************************************************
 
-void Parallel::miseAJourCommunicationsPersistantesLvl(int lvl, const int &dim)
+void Parallel::updatePersistentCommunicationsLvl(int lvl, const int &dim)
 {
-	int nombreEnvoi(0), nombreRecoi(0);
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) { //Si CPU voisin
-			//---------------------------------------------------------------------
-			//On vide dans un premier temps les variables d'envois et de receptions
-			//---------------------------------------------------------------------
-			MPI_Request_free(m_reqEnvois[lvl][voisin]);
-			MPI_Request_free(m_reqReceptions[lvl][voisin]);
-			MPI_Request_free(m_reqEnvoisPentes[lvl][voisin]);
-			MPI_Request_free(m_reqReceptionsPentes[lvl][voisin]);
-			MPI_Request_free(m_reqEnvoisVecteur[lvl][voisin]);
-			MPI_Request_free(m_reqReceptionsVecteur[lvl][voisin]);
-      MPI_Request_free(m_reqEnvoisTransports[lvl][voisin]);
-      MPI_Request_free(m_reqReceptionsTransports[lvl][voisin]);
-			MPI_Request_free(m_reqEnvoisXi[lvl][voisin]);
-			MPI_Request_free(m_reqReceptionsXi[lvl][voisin]);
-			MPI_Request_free(m_reqEnvoisSplit[lvl][voisin]);
-			MPI_Request_free(m_reqReceptionsSplit[lvl][voisin]);
+	int numberSend(0), numberReceive(0);
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//--------------------------------------------------
+			//We first empty the sending and receiving variables
+			//--------------------------------------------------
+			MPI_Request_free(m_reqSend[lvl][neighbour]);
+			MPI_Request_free(m_reqReceive[lvl][neighbour]);
+			MPI_Request_free(m_reqSendSlopes[lvl][neighbour]);
+			MPI_Request_free(m_reqReceiveSlopes[lvl][neighbour]);
+			MPI_Request_free(m_reqSendVector[lvl][neighbour]);
+			MPI_Request_free(m_reqReceiveVector[lvl][neighbour]);
+      MPI_Request_free(m_reqSendTransports[lvl][neighbour]);
+      MPI_Request_free(m_reqReceiveTransports[lvl][neighbour]);
+			MPI_Request_free(m_reqSendXi[lvl][neighbour]);
+			MPI_Request_free(m_reqReceiveXi[lvl][neighbour]);
+			MPI_Request_free(m_reqSendSplit[lvl][neighbour]);
+			MPI_Request_free(m_reqReceiveSplit[lvl][neighbour]);
 
-			delete m_reqEnvois[lvl][voisin];
-			delete m_reqReceptions[lvl][voisin];
-			delete m_reqEnvoisPentes[lvl][voisin];
-			delete m_reqReceptionsPentes[lvl][voisin];
-			delete m_reqEnvoisVecteur[lvl][voisin];
-			delete m_reqReceptionsVecteur[lvl][voisin];
-      delete m_reqEnvoisTransports[lvl][voisin];
-      delete m_reqReceptionsTransports[lvl][voisin];
-			delete m_reqEnvoisXi[lvl][voisin];
-			delete m_reqReceptionsXi[lvl][voisin];
-			delete m_reqEnvoisSplit[lvl][voisin];
-			delete m_reqReceptionsSplit[lvl][voisin];
+			delete m_reqSend[lvl][neighbour];
+			delete m_reqReceive[lvl][neighbour];
+			delete m_reqSendSlopes[lvl][neighbour];
+			delete m_reqReceiveSlopes[lvl][neighbour];
+			delete m_reqSendVector[lvl][neighbour];
+			delete m_reqReceiveVector[lvl][neighbour];
+      delete m_reqSendTransports[lvl][neighbour];
+      delete m_reqReceiveTransports[lvl][neighbour];
+			delete m_reqSendXi[lvl][neighbour];
+			delete m_reqReceiveXi[lvl][neighbour];
+			delete m_reqSendSplit[lvl][neighbour];
+			delete m_reqReceiveSplit[lvl][neighbour];
 
-			delete[] m_tamponEnv[lvl][voisin];
-			delete[] m_tamponRec[lvl][voisin];
-			delete[] m_tamponEnvPentes[lvl][voisin];
-			delete[] m_tamponRecPentes[lvl][voisin];
-			delete[] m_tamponEnvVecteur[lvl][voisin];
-			delete[] m_tamponRecVecteur[lvl][voisin];
-      delete[] m_tamponEnvTransports[lvl][voisin];
-      delete[] m_tamponRecTransports[lvl][voisin];
-			delete[] m_tamponEnvXi[lvl][voisin];
-			delete[] m_tamponRecXi[lvl][voisin];
-			delete[] m_tamponEnvSplit[lvl][voisin];
-			delete[] m_tamponRecSplit[lvl][voisin];
+			delete[] m_bufferSend[lvl][neighbour];
+			delete[] m_bufferReceive[lvl][neighbour];
+			delete[] m_bufferSendSlopes[lvl][neighbour];
+			delete[] m_bufferReceiveSlopes[lvl][neighbour];
+			delete[] m_bufferSendVector[lvl][neighbour];
+			delete[] m_bufferReceiveVector[lvl][neighbour];
+      delete[] m_bufferSendTransports[lvl][neighbour];
+      delete[] m_bufferReceiveTransports[lvl][neighbour];
+			delete[] m_bufferSendXi[lvl][neighbour];
+			delete[] m_bufferReceiveXi[lvl][neighbour];
+			delete[] m_bufferSendSplit[lvl][neighbour];
+			delete[] m_bufferReceiveSplit[lvl][neighbour];
 
-			//----------------------------------------------------------
-			//On ecrit les nouvelles variables d'envois et de receptions
-			//----------------------------------------------------------
+			//------------------------------------------------
+			//We write the new sending and receiving variables
+			//------------------------------------------------
 
-			//Variable Primitives
+			//Primitive variables
 			//-------------------
-			nombreEnvoi = m_nombreVariablesPrimitives*m_tamponNombreElementsAEnvoyerAVoisin[voisin];
-			nombreRecoi = m_nombreVariablesPrimitives*m_tamponNombreElementsARecevoirDeVoisin[voisin];
-			//Nouvelle requête d'envois et son buffer associe
-			m_reqEnvois[lvl][voisin] = new MPI_Request;
-			m_tamponEnv[lvl][voisin] = new double[nombreEnvoi];
-			MPI_Send_init(m_tamponEnv[lvl][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvois[lvl][voisin]);
+			numberSend = m_numberPrimitiveVariables*m_bufferNumberElementsToSendToNeighbor[neighbour];
+			numberReceive = m_numberPrimitiveVariables*m_bufferNumberElementsToReceiveFromNeighbour[neighbour];
+			//New sending request and its associated buffer
+			m_reqSend[lvl][neighbour] = new MPI_Request;
+			m_bufferSend[lvl][neighbour] = new double[numberSend];
+			MPI_Send_init(m_bufferSend[lvl][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSend[lvl][neighbour]);
 
-			//Nouvelle requête de receptions et son buffer associe
-			m_reqReceptions[lvl][voisin] = new MPI_Request;
-			m_tamponRec[lvl][voisin] = new double[nombreRecoi];
-			MPI_Recv_init(m_tamponRec[lvl][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptions[lvl][voisin]);
+			//New receiving request and its associated buffer
+			m_reqReceive[lvl][neighbour] = new MPI_Request;
+			m_bufferReceive[lvl][neighbour] = new double[numberReceive];
+			MPI_Recv_init(m_bufferReceive[lvl][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceive[lvl][neighbour]);
 
-			//Variable Pentes
+			//Slope variables
 			//---------------
-			nombreEnvoi = m_nombreVariablesPentes*m_tamponNombreElementsAEnvoyerAVoisin[voisin];
-			nombreRecoi = m_nombreVariablesPentes*m_tamponNombreElementsARecevoirDeVoisin[voisin];
-			//Nouvelle requête d'envois et son buffer associe
-			m_reqEnvoisPentes[lvl][voisin] = new MPI_Request;
-			m_tamponEnvPentes[lvl][voisin] = new double[nombreEnvoi];
-			MPI_Send_init(m_tamponEnvPentes[lvl][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisPentes[lvl][voisin]);
+			numberSend = m_numberSlopeVariables*m_bufferNumberElementsToSendToNeighbor[neighbour];
+			numberReceive = m_numberSlopeVariables*m_bufferNumberElementsToReceiveFromNeighbour[neighbour];
+			//New sending request and its associated buffer
+			m_reqSendSlopes[lvl][neighbour] = new MPI_Request;
+			m_bufferSendSlopes[lvl][neighbour] = new double[numberSend];
+			MPI_Send_init(m_bufferSendSlopes[lvl][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendSlopes[lvl][neighbour]);
 
-			//Nouvelle requête de receptions et son buffer associe
-			m_reqReceptionsPentes[lvl][voisin] = new MPI_Request;
-			m_tamponRecPentes[lvl][voisin] = new double[nombreRecoi];
-			MPI_Recv_init(m_tamponRecPentes[lvl][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsPentes[lvl][voisin]);
+			//New receiving request and its associated buffer
+			m_reqReceiveSlopes[lvl][neighbour] = new MPI_Request;
+			m_bufferReceiveSlopes[lvl][neighbour] = new double[numberReceive];
+			MPI_Recv_init(m_bufferReceiveSlopes[lvl][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveSlopes[lvl][neighbour]);
 
-			//Variable Vecteur
+			//Vector variables
 			//----------------
-			nombreEnvoi = dim*m_tamponNombreElementsAEnvoyerAVoisin[voisin];
-			nombreRecoi = dim*m_tamponNombreElementsARecevoirDeVoisin[voisin];
-			//Nouvelle requête d'envois et son buffer associe
-			m_reqEnvoisVecteur[lvl][voisin] = new MPI_Request;
-			m_tamponEnvVecteur[lvl][voisin] = new double[nombreEnvoi];
-			MPI_Send_init(m_tamponEnvVecteur[lvl][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisVecteur[lvl][voisin]);
+			numberSend = dim*m_bufferNumberElementsToSendToNeighbor[neighbour];
+			numberReceive = dim*m_bufferNumberElementsToReceiveFromNeighbour[neighbour];
+			//New sending request and its associated buffer
+			m_reqSendVector[lvl][neighbour] = new MPI_Request;
+			m_bufferSendVector[lvl][neighbour] = new double[numberSend];
+			MPI_Send_init(m_bufferSendVector[lvl][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendVector[lvl][neighbour]);
 
-			//Nouvelle requête de receptions et son buffer associe
-			m_reqReceptionsVecteur[lvl][voisin] = new MPI_Request;
-			m_tamponRecVecteur[lvl][voisin] = new double[nombreRecoi];
-			MPI_Recv_init(m_tamponRecVecteur[lvl][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsVecteur[lvl][voisin]);
+			//New receiving request and its associated buffer
+			m_reqReceiveVector[lvl][neighbour] = new MPI_Request;
+			m_bufferReceiveVector[lvl][neighbour] = new double[numberReceive];
+			MPI_Recv_init(m_bufferReceiveVector[lvl][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveVector[lvl][neighbour]);
 
-      //Variable Transportees
+      //Transported variables
       //---------------------
-      nombreEnvoi = m_nombreVariablesTransports*m_tamponNombreElementsAEnvoyerAVoisin[voisin];
-      nombreRecoi = m_nombreVariablesTransports*m_tamponNombreElementsARecevoirDeVoisin[voisin];
-      //Nouvelle requête d'envois et son buffer associe
-      m_reqEnvoisTransports[lvl][voisin] = new MPI_Request;
-      m_tamponEnvTransports[lvl][voisin] = new double[nombreEnvoi];
-      MPI_Send_init(m_tamponEnvTransports[lvl][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisTransports[lvl][voisin]);
+      numberSend = m_numberTransportVariables*m_bufferNumberElementsToSendToNeighbor[neighbour];
+      numberReceive = m_numberTransportVariables*m_bufferNumberElementsToReceiveFromNeighbour[neighbour];
+      //New sending request and its associated buffer
+      m_reqSendTransports[lvl][neighbour] = new MPI_Request;
+      m_bufferSendTransports[lvl][neighbour] = new double[numberSend];
+      MPI_Send_init(m_bufferSendTransports[lvl][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendTransports[lvl][neighbour]);
 
-      //Nouvelle requête de receptions et son buffer associe
-      m_reqReceptionsTransports[lvl][voisin] = new MPI_Request;
-      m_tamponRecTransports[lvl][voisin] = new double[nombreRecoi];
-      MPI_Recv_init(m_tamponRecTransports[lvl][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsTransports[lvl][voisin]);
+      //New receiving request and its associated buffer
+      m_reqReceiveTransports[lvl][neighbour] = new MPI_Request;
+      m_bufferReceiveTransports[lvl][neighbour] = new double[numberReceive];
+      MPI_Recv_init(m_bufferReceiveTransports[lvl][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveTransports[lvl][neighbour]);
 
-			//Variable Xi
+			//Xi variable
 			//-----------
-			nombreEnvoi = m_tamponNombreElementsAEnvoyerAVoisin[voisin];
-			nombreRecoi = m_tamponNombreElementsARecevoirDeVoisin[voisin];
-			//Nouvelle requête d'envois et son buffer associe
-			m_reqEnvoisXi[lvl][voisin] = new MPI_Request;
-			m_tamponEnvXi[lvl][voisin] = new double[nombreEnvoi];
-			MPI_Send_init(m_tamponEnvXi[lvl][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisXi[lvl][voisin]);
+			numberSend = m_bufferNumberElementsToSendToNeighbor[neighbour];
+			numberReceive = m_bufferNumberElementsToReceiveFromNeighbour[neighbour];
+			//New sending request and its associated buffer
+			m_reqSendXi[lvl][neighbour] = new MPI_Request;
+			m_bufferSendXi[lvl][neighbour] = new double[numberSend];
+			MPI_Send_init(m_bufferSendXi[lvl][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendXi[lvl][neighbour]);
 
-			//Nouvelle requête de receptions et son buffer associe
-			m_reqReceptionsXi[lvl][voisin] = new MPI_Request;
-			m_tamponRecXi[lvl][voisin] = new double[nombreRecoi];
-			MPI_Recv_init(m_tamponRecXi[lvl][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsXi[lvl][voisin]);
+			//New receiving request and its associated buffer
+			m_reqReceiveXi[lvl][neighbour] = new MPI_Request;
+			m_bufferReceiveXi[lvl][neighbour] = new double[numberReceive];
+			MPI_Recv_init(m_bufferReceiveXi[lvl][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveXi[lvl][neighbour]);
 
-			//Variable Split
+			//Split variable
 			//--------------
-			//Nouvelle requête d'envois et son buffer associe
-			m_reqEnvoisSplit[lvl][voisin] = new MPI_Request;
-			m_tamponEnvSplit[lvl][voisin] = new bool[nombreEnvoi];
-			MPI_Send_init(m_tamponEnvSplit[lvl][voisin], nombreEnvoi, MPI_C_BOOL, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisSplit[lvl][voisin]);
+			//New sending request and its associated buffer
+			m_reqSendSplit[lvl][neighbour] = new MPI_Request;
+			m_bufferSendSplit[lvl][neighbour] = new bool[numberSend];
+			MPI_Send_init(m_bufferSendSplit[lvl][neighbour], numberSend, MPI_C_BOOL, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendSplit[lvl][neighbour]);
 
-			//Nouvelle requête de receptions et son buffer associe
-			m_reqReceptionsSplit[lvl][voisin] = new MPI_Request;
-			m_tamponRecSplit[lvl][voisin] = new bool[nombreRecoi];
-			MPI_Recv_init(m_tamponRecSplit[lvl][voisin], nombreRecoi, MPI_C_BOOL, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsSplit[lvl][voisin]);
+			//New receiving request and its associated buffer
+			m_reqReceiveSplit[lvl][neighbour] = new MPI_Request;
+			m_bufferReceiveSplit[lvl][neighbour] = new bool[numberReceive];
+			MPI_Recv_init(m_bufferReceiveSplit[lvl][neighbour], numberReceive, MPI_C_BOOL, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveSplit[lvl][neighbour]);
 		}
 	}
 }
 
 //***********************************************************************
 
-void Parallel::finaliseAMR(const int &lvlMax)
+void Parallel::finalizeAMR(const int &lvlMax)
 {
 	if (Ncpu > 1) {
-		this->finaliseCommunicationsPersistantesPrimitives(lvlMax);
-		this->finaliseCommunicationsPersistantesPentes(lvlMax);
-		this->finaliseCommunicationsPersistantesVecteur(lvlMax);
-    this->finaliseCommunicationsPersistantesTransports(lvlMax);
-		this->finaliseCommunicationsPersistantesXi(lvlMax);
-		this->finaliseCommunicationsPersistantesSplit(lvlMax);
-		this->finaliseCommunicationsPersistantesNombreCellulesGhost();
+		this->finalizePersistentCommunicationsPrimitives(lvlMax);
+		this->finalizePersistentCommunicationsSlopes(lvlMax);
+		this->finalizePersistentCommunicationsVector(lvlMax);
+    this->finalizePersistentCommunicationsTransports(lvlMax);
+		this->finalizePersistentCommunicationsXi(lvlMax);
+		this->finalizePersistentCommunicationsSplit(lvlMax);
+		this->finalizePersistentCommunicationsNumberGhostCells();
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //***********************************************************************
 
-void Parallel::initialiseCommunicationsPersistantesXi()
+void Parallel::initializePersistentCommunicationsXi()
 {
-	int nombre(1);
+	int number(1);
 
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) { //Si CPU voisin
-			//Determination du nombre de variables a communiquer
-			int nombreEnvoi = nombre*m_nombreElementsAEnvoyerAVoisin[voisin];
-			int nombreRecoi = nombre*m_nombreElementsARecevoirDeVoisin[voisin];
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//Determination of the number of variables to communicate
+			int numberSend = number*m_numberElementsToSendToNeighbour[neighbour];
+			int numberReceive = number*m_numberElementsToReceiveFromNeighbour[neighbour];
 
-			//Nouvelle requête d'envois et son buffer associe
-			m_reqEnvoisXi[0][voisin] = new MPI_Request;
-			m_tamponEnvXi[0][voisin] = new double[nombreEnvoi];
-			MPI_Send_init(m_tamponEnvXi[0][voisin], nombreEnvoi, MPI_DOUBLE_PRECISION, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisXi[0][voisin]);
+			//New sending request and its associated buffer
+			m_reqSendXi[0][neighbour] = new MPI_Request;
+			m_bufferSendXi[0][neighbour] = new double[numberSend];
+			MPI_Send_init(m_bufferSendXi[0][neighbour], numberSend, MPI_DOUBLE, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendXi[0][neighbour]);
 
-			//Nouvelle requête de receptions et son buffer associe
-			m_reqReceptionsXi[0][voisin] = new MPI_Request;
-			m_tamponRecXi[0][voisin] = new double[nombreRecoi];
-			MPI_Recv_init(m_tamponRecXi[0][voisin], nombreRecoi, MPI_DOUBLE_PRECISION, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsXi[0][voisin]);
+			//New receiving request and its associated buffer
+			m_reqReceiveXi[0][neighbour] = new MPI_Request;
+			m_bufferReceiveXi[0][neighbour] = new double[numberReceive];
+			MPI_Recv_init(m_bufferReceiveXi[0][neighbour], numberReceive, MPI_DOUBLE, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveXi[0][neighbour]);
 		}
 	}
 }
 
 //***********************************************************************
 
-void Parallel::finaliseCommunicationsPersistantesXi(const int &lvlMax)
+void Parallel::finalizePersistentCommunicationsXi(const int &lvlMax)
 {
 	for (int lvl = 0; lvl <= lvlMax; lvl++) {
-		for (int voisin = 0; voisin < Ncpu; voisin++) {
-			if (m_estVoisin[voisin]) { //Si CPU voisin
-				MPI_Request_free(m_reqEnvoisXi[lvl][voisin]);
-				MPI_Request_free(m_reqReceptionsXi[lvl][voisin]);
-        delete m_reqEnvoisXi[lvl][voisin];
-        delete[] m_tamponEnvXi[lvl][voisin];
-        delete m_reqReceptionsXi[lvl][voisin];
-        delete[] m_tamponRecXi[lvl][voisin];
+		for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+			if (m_isNeighbour[neighbour]) {
+				MPI_Request_free(m_reqSendXi[lvl][neighbour]);
+				MPI_Request_free(m_reqReceiveXi[lvl][neighbour]);
+        delete m_reqSendXi[lvl][neighbour];
+        delete[] m_bufferSendXi[lvl][neighbour];
+        delete m_reqReceiveXi[lvl][neighbour];
+        delete[] m_bufferReceiveXi[lvl][neighbour];
 			}
 		}
-		delete[] m_reqEnvoisXi[lvl];
-		delete[] m_tamponEnvXi[lvl];
-		delete[] m_reqReceptionsXi[lvl];
-		delete[] m_tamponRecXi[lvl];
+		delete[] m_reqSendXi[lvl];
+		delete[] m_bufferSendXi[lvl];
+		delete[] m_reqReceiveXi[lvl];
+		delete[] m_bufferReceiveXi[lvl];
 	}
-  m_reqEnvoisXi.clear();
-  m_tamponEnvXi.clear();
-  m_reqReceptionsXi.clear();
-  m_tamponRecXi.clear();
+  m_reqSendXi.clear();
+  m_bufferSendXi.clear();
+  m_reqReceiveXi.clear();
+  m_bufferReceiveXi.clear();
 }
 
 //***********************************************************************
 
-void Parallel::communicationsXi(Cellule **cellules, const int &lvl)
+void Parallel::communicationsXi(Cell **cells, const int &lvl)
 {
 	int count(0);
 	MPI_Status status;
 
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) {
-			//Prepation des envois
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//Prepation of sendings
 			count = -1;
-			if (rang < voisin) { //Je suis CPU gauche
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					//Remplissage m_tamponEnvXi automatique
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponXiJeSuisCpuGauche(m_tamponEnvXi[lvl][voisin], count, lvl);
-				}
-			}
-			else { //Je suis CPU droite
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					//Remplissage m_tamponEnvXi automatique
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponXiJeSuisCpuDroite(m_tamponEnvXi[lvl][voisin], count, lvl);
-				}
+			for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++) {
+				//Automatic filing of m_bufferSendXi
+				cells[m_elementsToSend[neighbour][i]]->fillBufferXi(m_bufferSendXi[lvl][neighbour], count, lvl, m_whichCpuAmIForNeighbour[neighbour]);
 			}
 
-			//Requête d'envoi
-			MPI_Start(m_reqEnvoisXi[lvl][voisin]);
-			//Requête de reception
-			MPI_Start(m_reqReceptionsXi[lvl][voisin]);
-			//Attente
-			MPI_Wait(m_reqEnvoisXi[lvl][voisin], &status);
-			MPI_Wait(m_reqReceptionsXi[lvl][voisin], &status);
+			//Sending request
+			MPI_Start(m_reqSendXi[lvl][neighbour]);
+			//Receiving request
+			MPI_Start(m_reqReceiveXi[lvl][neighbour]);
+			//Waiting
+			MPI_Wait(m_reqSendXi[lvl][neighbour], &status);
+			MPI_Wait(m_reqReceiveXi[lvl][neighbour], &status);
 
-			//Receptions
+			//Receivings
 			count = -1;
-			for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-				//Remplissage m_tamponRecXi automatique
-				cellules[m_elementsARecevoir[voisin][i]]->recupereTamponXi(m_tamponRecXi[lvl][voisin], count, lvl);
+			for (int i = 0; i < m_numberElementsToReceiveFromNeighbour[neighbour]; i++) {
+				//Automatic filing of m_bufferReceiveXi
+				cells[m_elementsToReceive[neighbour][i]]->getBufferXi(m_bufferReceiveXi[lvl][neighbour], count, lvl);
 			}
-		} //Fin voisin
-	}
-}
-
-//***********************************************************************
-
-void Parallel::initialiseCommunicationsPersistantesSplit()
-{
-	int nombre(1);
-
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) { //Si CPU voisin
-			//Determination du nombre de variables a communiquer
-			int nombreEnvoi = nombre*m_nombreElementsAEnvoyerAVoisin[voisin];
-			int nombreRecoi = nombre*m_nombreElementsARecevoirDeVoisin[voisin];
-
-			//Nouvelle requête d'envois et son buffer associe
-			m_reqEnvoisSplit[0][voisin] = new MPI_Request;
-			m_tamponEnvSplit[0][voisin] = new bool[nombreEnvoi];
-			MPI_Send_init(m_tamponEnvSplit[0][voisin], nombreEnvoi, MPI_C_BOOL, voisin, voisin, MPI_COMM_WORLD, m_reqEnvoisSplit[0][voisin]);
-
-			//Nouvelle requête de receptions et son buffer associe
-			m_reqReceptionsSplit[0][voisin] = new MPI_Request;
-			m_tamponRecSplit[0][voisin] = new bool[nombreRecoi];
-			MPI_Recv_init(m_tamponRecSplit[0][voisin], nombreRecoi, MPI_C_BOOL, voisin, rang, MPI_COMM_WORLD, m_reqReceptionsSplit[0][voisin]);
 		}
 	}
 }
 
 //***********************************************************************
 
-void Parallel::finaliseCommunicationsPersistantesSplit(const int &lvlMax)
+void Parallel::initializePersistentCommunicationsSplit()
+{
+	int number(1);
+
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//Determination of the number of variables to communicate
+			int numberSend = number*m_numberElementsToSendToNeighbour[neighbour];
+			int numberReceive = number*m_numberElementsToReceiveFromNeighbour[neighbour];
+
+			//New sending request and its associated buffer
+			m_reqSendSplit[0][neighbour] = new MPI_Request;
+			m_bufferSendSplit[0][neighbour] = new bool[numberSend];
+			MPI_Send_init(m_bufferSendSplit[0][neighbour], numberSend, MPI_C_BOOL, neighbour, neighbour, MPI_COMM_WORLD, m_reqSendSplit[0][neighbour]);
+
+			//New receiving request and its associated buffer
+			m_reqReceiveSplit[0][neighbour] = new MPI_Request;
+			m_bufferReceiveSplit[0][neighbour] = new bool[numberReceive];
+			MPI_Recv_init(m_bufferReceiveSplit[0][neighbour], numberReceive, MPI_C_BOOL, neighbour, rankCpu, MPI_COMM_WORLD, m_reqReceiveSplit[0][neighbour]);
+		}
+	}
+}
+
+//***********************************************************************
+
+void Parallel::finalizePersistentCommunicationsSplit(const int &lvlMax)
 {
 	for (int lvl = 0; lvl <= lvlMax; lvl++) {
-		for (int voisin = 0; voisin < Ncpu; voisin++) {
-			if (m_estVoisin[voisin]) { //Si CPU voisin
-				MPI_Request_free(m_reqEnvoisSplit[lvl][voisin]);
-				MPI_Request_free(m_reqReceptionsSplit[lvl][voisin]);
-        delete m_reqEnvoisSplit[lvl][voisin];
-        delete[] m_tamponEnvSplit[lvl][voisin];
-        delete m_reqReceptionsSplit[lvl][voisin];
-        delete[] m_tamponRecSplit[lvl][voisin];
+		for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+			if (m_isNeighbour[neighbour]) {
+				MPI_Request_free(m_reqSendSplit[lvl][neighbour]);
+				MPI_Request_free(m_reqReceiveSplit[lvl][neighbour]);
+        delete m_reqSendSplit[lvl][neighbour];
+        delete[] m_bufferSendSplit[lvl][neighbour];
+        delete m_reqReceiveSplit[lvl][neighbour];
+        delete[] m_bufferReceiveSplit[lvl][neighbour];
 			}
 		}
-		delete[] m_reqEnvoisSplit[lvl];
-		delete[] m_tamponEnvSplit[lvl];
-		delete[] m_reqReceptionsSplit[lvl];
-		delete[] m_tamponRecSplit[lvl];
+		delete[] m_reqSendSplit[lvl];
+		delete[] m_bufferSendSplit[lvl];
+		delete[] m_reqReceiveSplit[lvl];
+		delete[] m_bufferReceiveSplit[lvl];
 	}
-  m_reqEnvoisSplit.clear();
-  m_tamponEnvSplit.clear();
-  m_reqReceptionsSplit.clear();
-  m_tamponRecSplit.clear();
+  m_reqSendSplit.clear();
+  m_bufferSendSplit.clear();
+  m_reqReceiveSplit.clear();
+  m_bufferReceiveSplit.clear();
 }
 
 //***********************************************************************
 
-void Parallel::communicationsSplit(Cellule **cellules, const int &lvl)
+void Parallel::communicationsSplit(Cell **cells, const int &lvl)
 {
 	int count(0);
 	MPI_Status status;
 
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) {
-			//Prepation des envois
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//Prepation of sendings
 			count = -1;
-			if (rang < voisin) { //Je suis CPU gauche
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					//Remplissage m_tamponEnvSplit automatique
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponSplitJeSuisCpuGauche(m_tamponEnvSplit[lvl][voisin], count, lvl);
-				}
+			for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++) {
+				//Automatic filing of m_bufferSendSplit
+				cells[m_elementsToSend[neighbour][i]]->fillBufferSplit(m_bufferSendSplit[lvl][neighbour], count, lvl, m_whichCpuAmIForNeighbour[neighbour]);
 			}
-			else { //Je suis CPU droite
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					//Remplissage m_tamponEnvSplit automatique
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponSplitJeSuisCpuDroite(m_tamponEnvSplit[lvl][voisin], count, lvl);
-				}
-			}
+      
+			//Sending request
+			MPI_Start(m_reqSendSplit[lvl][neighbour]);
+			//Receiving request
+			MPI_Start(m_reqReceiveSplit[lvl][neighbour]);
+			//Waiting
+			MPI_Wait(m_reqSendSplit[lvl][neighbour], &status);
+			MPI_Wait(m_reqReceiveSplit[lvl][neighbour], &status);
 
-			//Requête d'envoi
-			MPI_Start(m_reqEnvoisSplit[lvl][voisin]);
-			//Requête de reception
-			MPI_Start(m_reqReceptionsSplit[lvl][voisin]);
-			//Attente
-			MPI_Wait(m_reqEnvoisSplit[lvl][voisin], &status);
-			MPI_Wait(m_reqReceptionsSplit[lvl][voisin], &status);
-
-			//Receptions
+			//Receivings
 			count = -1;
-			for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-				//Remplissage m_tamponRecSplit automatique
-				cellules[m_elementsARecevoir[voisin][i]]->recupereTamponSplit(m_tamponRecSplit[lvl][voisin], count, lvl);
+			for (int i = 0; i < m_numberElementsToReceiveFromNeighbour[neighbour]; i++) {
+				//Automatic filing of m_bufferReceiveSplit
+				cells[m_elementsToReceive[neighbour][i]]->getBufferSplit(m_bufferReceiveSplit[lvl][neighbour], count, lvl);
 			}
-		} //Fin voisin
-	}
-}
-
-//***********************************************************************
-
-void Parallel::initialiseCommunicationsPersistantesNombreCellulesGhost()
-{
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) { //Si CPU voisin
-			//Determination du nombre de variables a communiquer
-			int nombreEnvoi = 1;
-			int nombreRecoi = 1;
-
-			//Nouvelle requête d'envois et son buffer associe
-			m_reqNombreElementsAEnvoyerAVoisin[voisin] = new MPI_Request;
-			m_tamponNombreElementsAEnvoyerAVoisin[voisin] = 0;
-			MPI_Send_init(&m_tamponNombreElementsAEnvoyerAVoisin[voisin], nombreEnvoi, MPI_INT, voisin, voisin, MPI_COMM_WORLD, m_reqNombreElementsAEnvoyerAVoisin[voisin]);
-
-			//Nouvelle requête de receptions et son buffer associe
-			m_reqNombreElementsARecevoirDeVoisin[voisin] = new MPI_Request;
-			m_tamponNombreElementsARecevoirDeVoisin[voisin] = 0;
-			MPI_Recv_init(&m_tamponNombreElementsARecevoirDeVoisin[voisin], nombreRecoi, MPI_INT, voisin, rang, MPI_COMM_WORLD, m_reqNombreElementsARecevoirDeVoisin[voisin]);
 		}
 	}
 }
 
 //***********************************************************************
 
-void Parallel::finaliseCommunicationsPersistantesNombreCellulesGhost()
+void Parallel::initializePersistentCommunicationsNumberGhostCells()
 {
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) { //Si CPU voisin
-			MPI_Request_free(m_reqNombreElementsAEnvoyerAVoisin[voisin]);
-			MPI_Request_free(m_reqNombreElementsARecevoirDeVoisin[voisin]);
-			delete m_reqNombreElementsAEnvoyerAVoisin[voisin];
-			delete m_reqNombreElementsARecevoirDeVoisin[voisin];
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//Determination of the number of variables to communicate
+			int numberSend = 1;
+			int numberReceive = 1;
+
+			//New sending request and its associated buffer
+			m_reqNumberElementsToSendToNeighbor[neighbour] = new MPI_Request;
+			m_bufferNumberElementsToSendToNeighbor[neighbour] = 0;
+			MPI_Send_init(&m_bufferNumberElementsToSendToNeighbor[neighbour], numberSend, MPI_INT, neighbour, neighbour, MPI_COMM_WORLD, m_reqNumberElementsToSendToNeighbor[neighbour]);
+
+			//New receiving request and its associated buffer
+			m_reqNumberElementsToReceiveFromNeighbour[neighbour] = new MPI_Request;
+			m_bufferNumberElementsToReceiveFromNeighbour[neighbour] = 0;
+			MPI_Recv_init(&m_bufferNumberElementsToReceiveFromNeighbour[neighbour], numberReceive, MPI_INT, neighbour, rankCpu, MPI_COMM_WORLD, m_reqNumberElementsToReceiveFromNeighbour[neighbour]);
 		}
 	}
-	delete[] m_reqNombreElementsAEnvoyerAVoisin;
-	delete[] m_reqNombreElementsARecevoirDeVoisin;
-	delete[] m_tamponNombreElementsAEnvoyerAVoisin;
-	delete[] m_tamponNombreElementsARecevoirDeVoisin;
 }
 
 //***********************************************************************
 
-void Parallel::communicationsNombreCellulesGhost(Cellule **cellules, const int &lvl)
+void Parallel::finalizePersistentCommunicationsNumberGhostCells()
+{
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			MPI_Request_free(m_reqNumberElementsToSendToNeighbor[neighbour]);
+			MPI_Request_free(m_reqNumberElementsToReceiveFromNeighbour[neighbour]);
+			delete m_reqNumberElementsToSendToNeighbor[neighbour];
+			delete m_reqNumberElementsToReceiveFromNeighbour[neighbour];
+		}
+	}
+	delete[] m_reqNumberElementsToSendToNeighbor;
+	delete[] m_reqNumberElementsToReceiveFromNeighbour;
+	delete[] m_bufferNumberElementsToSendToNeighbor;
+	delete[] m_bufferNumberElementsToReceiveFromNeighbour;
+}
+
+//***********************************************************************
+
+void Parallel::communicationsNumberGhostCells(Cell **cells, const int &lvl)
 {
 	MPI_Status status;
 
-	for (int voisin = 0; voisin < Ncpu; voisin++)
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++)
 	{
-		if (m_estVoisin[voisin]) {
+		if (m_isNeighbour[neighbour]) {
 			//Prepation de l'envoi
-			m_tamponNombreElementsAEnvoyerAVoisin[voisin] = 0;
-			if (rang < voisin) { //Je suis CPU gauche
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					//Remplissage m_tamponEnvSplit automatique
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliNombreElementsAEnvoyerAVoisinJeSuisCpuGauche(m_tamponNombreElementsAEnvoyerAVoisin[voisin], lvl);
-				}
-			}
-			else { //Je suis CPU droite
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					//Remplissage m_tamponEnvSplit automatique
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliNombreElementsAEnvoyerAVoisinJeSuisCpuDroite(m_tamponNombreElementsAEnvoyerAVoisin[voisin], lvl);
-				}
+			m_bufferNumberElementsToSendToNeighbor[neighbour] = 0;
+			for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++) {
+				//Automatic filing of m_bufferSendSplit
+				cells[m_elementsToSend[neighbour][i]]->fillNumberElementsToSendToNeighbour(m_bufferNumberElementsToSendToNeighbor[neighbour], lvl, m_whichCpuAmIForNeighbour[neighbour]);
 			}
 
-			//Requête d'envoi
-			MPI_Start(m_reqNombreElementsAEnvoyerAVoisin[voisin]);
-			//Requête de reception
-			MPI_Start(m_reqNombreElementsARecevoirDeVoisin[voisin]);
-			//Attente
-			MPI_Wait(m_reqNombreElementsAEnvoyerAVoisin[voisin], &status);
-			MPI_Wait(m_reqNombreElementsARecevoirDeVoisin[voisin], &status);
 
-			//Pas de reception supplementaire a gerer
+			//Sending request
+			MPI_Start(m_reqNumberElementsToSendToNeighbor[neighbour]);
+			//Receiving request
+			MPI_Start(m_reqNumberElementsToReceiveFromNeighbour[neighbour]);
+			//Waiting
+			MPI_Wait(m_reqNumberElementsToSendToNeighbor[neighbour], &status);
+			MPI_Wait(m_reqNumberElementsToReceiveFromNeighbour[neighbour], &status);
 
-		} //Fin voisin
+			//No supplementary receivings to treat
+
+		}
 	}
 }
 
 //***********************************************************************
 
-void Parallel::communicationsPrimitivesAMR(Cellule **cellules, Eos **eos, const int &lvl, Prim type)
+void Parallel::communicationsPrimitivesAMR(Cell **cells, Eos **eos, const int &lvl, Prim type)
 {
 	int count(0);
 	MPI_Status status;
 
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) {
-			//Prepation des envois
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//Prepation of sendings
 			count = -1;
-			if (rang < voisin) { //Je suis CPU gauche
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++)	{
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponPrimitivesAMRjeSuisCpuGauche(m_tamponEnv[lvl][voisin], count, lvl, type);
-				}
-			}
-			else { //Je suis CPU droite
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++)	{
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponPrimitivesAMRjeSuisCpuDroite(m_tamponEnv[lvl][voisin], count, lvl, type);
-				}
-			}
+      for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++) {
+        cells[m_elementsToSend[neighbour][i]]->fillBufferPrimitivesAMR(m_bufferSend[lvl][neighbour], count, lvl, m_whichCpuAmIForNeighbour[neighbour], type);
+      }
 
-			//Requête d'envoi
-			MPI_Start(m_reqEnvois[lvl][voisin]);
-			//Requête de reception
-			MPI_Start(m_reqReceptions[lvl][voisin]);
-			//Attente
-			MPI_Wait(m_reqEnvois[lvl][voisin], &status);
-			MPI_Wait(m_reqReceptions[lvl][voisin], &status);
-
-			//Receptions
+			//Sending request
+			MPI_Start(m_reqSend[lvl][neighbour]);
+			//Receiving request
+			MPI_Start(m_reqReceive[lvl][neighbour]);
+			//Waiting
+			MPI_Wait(m_reqSend[lvl][neighbour], &status);
+			MPI_Wait(m_reqReceive[lvl][neighbour], &status);
+      
+			//Receivings
 			count = -1;
-			for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-				cellules[m_elementsARecevoir[voisin][i]]->recupereTamponPrimitivesAMR(m_tamponRec[lvl][voisin], count, lvl, eos, type);
+			for (int i = 0; i < m_numberElementsToReceiveFromNeighbour[neighbour]; i++) {
+				cells[m_elementsToReceive[neighbour][i]]->getBufferPrimitivesAMR(m_bufferReceive[lvl][neighbour], count, lvl, eos, type);
 			}
-		} //Fin voisin
+		}
 	}
 }
 
 //***********************************************************************
 
-void Parallel::communicationsPentesAMR(Cellule **cellules, const int &lvl)
+void Parallel::communicationsSlopesAMR(Cell **cells, const int &lvl)
 {
 	int count(0);
 	MPI_Status status;
 
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) {
-			//Prepation des envois
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//Prepation of sendings
 			count = -1;
-			if (rang < voisin) { //Je suis CPU gauche
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponPentesAMRjeSuisCpuGauche(m_tamponEnvPentes[lvl][voisin], count, lvl);
-				}
-			}
-			else { //Je suis CPU droite
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponPentesAMRjeSuisCpuDroite(m_tamponEnvPentes[lvl][voisin], count, lvl);
-				}
+			for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++) {
+				cells[m_elementsToSend[neighbour][i]]->fillBufferSlopesAMR(m_bufferSendSlopes[lvl][neighbour], count, lvl, m_whichCpuAmIForNeighbour[neighbour]);
 			}
 
-			//Requête d'envoi
-			MPI_Start(m_reqEnvoisPentes[lvl][voisin]);
-			//Requête de reception
-			MPI_Start(m_reqReceptionsPentes[lvl][voisin]);
-			//Attente
-			MPI_Wait(m_reqEnvoisPentes[lvl][voisin], &status);
-			MPI_Wait(m_reqReceptionsPentes[lvl][voisin], &status);
+			//Sending request
+			MPI_Start(m_reqSendSlopes[lvl][neighbour]);
+			//Receiving request
+			MPI_Start(m_reqReceiveSlopes[lvl][neighbour]);
+			//Waiting
+			MPI_Wait(m_reqSendSlopes[lvl][neighbour], &status);
+			MPI_Wait(m_reqReceiveSlopes[lvl][neighbour], &status);
 
-			//Receptions
+			//Receivings
 			count = -1;
-			for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-				cellules[m_elementsARecevoir[voisin][i]]->recupereTamponPentesAMR(m_tamponRecPentes[lvl][voisin], count, lvl);
+			for (int i = 0; i < m_numberElementsToReceiveFromNeighbour[neighbour]; i++) {
+				cells[m_elementsToReceive[neighbour][i]]->getBufferSlopesAMR(m_bufferReceiveSlopes[lvl][neighbour], count, lvl);
 			}
-		} //Fin voisin
+		}
 	}
 }
 
 //***********************************************************************
 
-void Parallel::communicationsScalaireAMR(Cellule **cellules, string nomScalaire, const int &lvl)
+void Parallel::communicationsVectorAMR(Cell **cells, string nameVector, const int &dim, const int &lvl, int num, int index)
 {
 	int count(0);
 	MPI_Status status;
 
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) {
-			//Prepation des envois
+	for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+		if (m_isNeighbour[neighbour]) {
+			//Prepation of sendings
 			count = -1;
-			if (rang < voisin) { //Je suis CPU gauche
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					//Remplissage m_tamponEnvScalaire automatique selon nom de la variable
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponScalaireAMRjeSuisCpuGauche(m_tamponEnvScalaire[lvl][voisin], count, lvl, nomScalaire);
-				}
-			}
-			else { //Je suis CPU droite
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					//Remplissage m_tamponEnvScalaire automatique selon nom de la variable
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponScalaireAMRjeSuisCpuDroite(m_tamponEnvScalaire[lvl][voisin], count, lvl, nomScalaire);
-				}
+			for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++) {
+				//Automatic filing of m_bufferSendVector function of gradient coordinates
+				cells[m_elementsToSend[neighbour][i]]->fillBufferVectorAMR(m_bufferSendVector[lvl][neighbour], count, lvl, m_whichCpuAmIForNeighbour[neighbour], dim, nameVector, num, index);
 			}
 
-			//Requête d'envoi
-			MPI_Start(m_reqEnvoisScalaire[lvl][voisin]);
-			//Requête de reception
-			MPI_Start(m_reqReceptionsScalaire[lvl][voisin]);
-			//Attente
-			MPI_Wait(m_reqEnvoisScalaire[lvl][voisin], &status);
-			MPI_Wait(m_reqReceptionsScalaire[lvl][voisin], &status);
-
-			//Receptions
+			//Sending request
+			MPI_Start(m_reqSendVector[lvl][neighbour]);
+			//Receiving request
+			MPI_Start(m_reqReceiveVector[lvl][neighbour]);
+			//Waiting
+			MPI_Wait(m_reqSendVector[lvl][neighbour], &status);
+			MPI_Wait(m_reqReceiveVector[lvl][neighbour], &status);
+			//Receivings
 			count = -1;
-			for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-				//Remplissage m_tamponRecGrad automatique selon coordonnees du gradient
-				cellules[m_elementsARecevoir[voisin][i]]->recupereTamponScalaireAMR(m_tamponRecScalaire[lvl][voisin], count, lvl, nomScalaire);
+			for (int i = 0; i < m_numberElementsToReceiveFromNeighbour[neighbour]; i++) {
+				//Automatic filing of m_bufferReceiveVector function of gradient coordinates
+				cells[m_elementsToReceive[neighbour][i]]->getBufferVectorAMR(m_bufferReceiveVector[lvl][neighbour], count, lvl, dim, nameVector, num, index);
 			}
-		} //Fin voisin
+		}
 	}
 }
 
 //***********************************************************************
 
-void Parallel::communicationsVecteurAMR(Cellule **cellules, string nomVecteur, const int &dim, const int &lvl, int num, int indice)
-{
-	int count(0);
-	MPI_Status status;
-
-	for (int voisin = 0; voisin < Ncpu; voisin++) {
-		if (m_estVoisin[voisin]) {
-			//Prepation des envois
-			count = -1;
-			if (rang < voisin) { //Je suis CPU gauche
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					//Remplissage m_tamponEnvVecteur automatique selon coordonnees du gradient
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponVecteurAMRjeSuisCpuGauche(m_tamponEnvVecteur[lvl][voisin], count, lvl, dim, nomVecteur, num, indice);
-				}
-			}
-			else { //Je suis CPU droite
-				for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-					//Remplissage m_tamponEnvVecteur automatique selon coordonnees du gradient
-					cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponVecteurAMRjeSuisCpuDroite(m_tamponEnvVecteur[lvl][voisin], count, lvl, dim, nomVecteur, num, indice);
-				}
-			}
-
-			//Requête d'envoi
-			MPI_Start(m_reqEnvoisVecteur[lvl][voisin]);
-			//Requête de reception
-			MPI_Start(m_reqReceptionsVecteur[lvl][voisin]);
-			//Attente
-			MPI_Wait(m_reqEnvoisVecteur[lvl][voisin], &status);
-			MPI_Wait(m_reqReceptionsVecteur[lvl][voisin], &status);
-
-			//Receptions
-			count = -1;
-			for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-				//Remplissage m_tamponRecVecteur automatique selon coordonnees du gradient
-				cellules[m_elementsARecevoir[voisin][i]]->recupereTamponVecteurAMR(m_tamponRecVecteur[lvl][voisin], count, lvl, dim, nomVecteur, num, indice);
-			}
-		} //Fin voisin
-	}
-}
-
-//***********************************************************************
-
-void Parallel::communicationsTransportsAMR(Cellule **cellules, const int &lvl)
+void Parallel::communicationsTransportsAMR(Cell **cells, const int &lvl)
 {
   int count(0);
   MPI_Status status;
 
-  for (int voisin = 0; voisin < Ncpu; voisin++) {
-    if (m_estVoisin[voisin]) {
-      //Prepation des envois
+  for (int neighbour = 0; neighbour < Ncpu; neighbour++) {
+    if (m_isNeighbour[neighbour]) {
+      //Prepation of sendings
       count = -1;
-      if (rang < voisin) { //Je suis CPU gauche
-        for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-          cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponTransportsAMRjeSuisCpuGauche(m_tamponEnvTransports[lvl][voisin], count, lvl);
-        }
-      }
-      else { //Je suis CPU droite
-        for (int i = 0; i < m_nombreElementsAEnvoyerAVoisin[voisin]; i++) {
-          cellules[m_elementsAEnvoyer[voisin][i]]->rempliTamponTransportsAMRjeSuisCpuDroite(m_tamponEnvTransports[lvl][voisin], count, lvl);
-        }
+      for (int i = 0; i < m_numberElementsToSendToNeighbour[neighbour]; i++) {
+        cells[m_elementsToSend[neighbour][i]]->fillBufferTransportsAMR(m_bufferSendTransports[lvl][neighbour], count, lvl, m_whichCpuAmIForNeighbour[neighbour]);
       }
 
-      //Requête d'envoi
-      MPI_Start(m_reqEnvoisTransports[lvl][voisin]);
-      //Requête de reception
-      MPI_Start(m_reqReceptionsTransports[lvl][voisin]);
-      //Attente
-      MPI_Wait(m_reqEnvoisTransports[lvl][voisin], &status);
-      MPI_Wait(m_reqReceptionsTransports[lvl][voisin], &status);
+      //Sending request
+      MPI_Start(m_reqSendTransports[lvl][neighbour]);
+      //Receiving request
+      MPI_Start(m_reqReceiveTransports[lvl][neighbour]);
+      //Waiting
+      MPI_Wait(m_reqSendTransports[lvl][neighbour], &status);
+      MPI_Wait(m_reqReceiveTransports[lvl][neighbour], &status);
 
-      //Receptions
+      //Receivings
       count = -1;
-      for (int i = 0; i < m_nombreElementsARecevoirDeVoisin[voisin]; i++) {
-        cellules[m_elementsARecevoir[voisin][i]]->recupereTamponTransportsAMR(m_tamponRecTransports[lvl][voisin], count, lvl);
+      for (int i = 0; i < m_numberElementsToReceiveFromNeighbour[neighbour]; i++) {
+        cells[m_elementsToReceive[neighbour][i]]->getBufferTransportsAMR(m_bufferReceiveTransports[lvl][neighbour], count, lvl);
       }
-    } //Fin voisin
+    }
   }
 }
 

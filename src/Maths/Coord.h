@@ -30,59 +30,116 @@
 #ifndef COORD_H
 #define COORD_H
 
+//! \file      Coord.h
+//! \author    F. Petitpas, K. Schmidmayer, S. Le Martelot
+//! \version   1.0
+//! \date      January 5 2018
+
+//! \class     Coord
+//! \brief     Class for a coordinate system object such as coordinates of the vertex or a vector
 class Coord
 {
 public:
   Coord();
+  //! \brief     Coord constructor
+  //! \param     x                    value of the x-direction coordinate
+  //! \param     y                    value of the y-direction coordinate (if it is not assigned it is set to 0.)
+  //! \param     z                    value of the z-direction coordinate (if it is not assigned it is set to 0.)
   Coord(const double &x, const double &y = 0., const double&z = 0.);
   virtual ~Coord();
+  //! \brief     Set the values of the Coord object
+  //! \param     x                    value of the x-direction coordinate
+  //! \param     y                    value of the y-direction coordinate
+  //! \param     z                    value of the z-direction coordinate
   void setXYZ(const double &x, const double & y, const double &z);
+  //! \brief     Set the value in the x-direction of the Coord object
+  //! \param     x                    value of the x-direction coordinate
   void setX(const double &x);
+  //! \brief     Set the value in the y-direction of the Coord object
+  //! \param     y                    value of the y-direction coordinate
   void setY(const double &y);
+  //! \brief     Set the value in the z-direction of the Coord object
+  //! \param     z                    value of the z-direction coordinate
   void setZ(const double &z);
+  //! \brief     Return the value in the x-direction of the Coord object
   double getX() const;
+  //! \brief     Return the value in the y-direction of the Coord object
   double getY() const;
+  //! \brief     Return the value in the z-direction of the Coord object
   double getZ() const;
-  double norme() const;
-  double normeCarre() const;
+  //! \brief     Return the value of the norm of the Coord object
+  double norm() const;
+  //! \brief     Return the value of the squared norm of the Coord object
+  double squaredNorm() const;
 
-  double scalaire(const Coord &a) const; //Produit scalaire entre vecteur et vecteur a
-  Coord vectoriel(const Coord &a) const; //Produit vectoriel entre vecteur et vecteur a
-  void projection(const Coord &normale, const Coord &tangente, const Coord &binormale);
-  void projectionRepereAbsolu(const Coord &normale, const Coord &tangente, const Coord &binormale);
+  //! \brief     Scalar product between the present vector and vector a
+  //! \param     a                    vector (Coord)
+  double scalar(const Coord &a) const;
+  //! \brief     Cross product between the present vector and vector a
+  //! \param     a                    vector (Coord)
+  Coord cross(const Coord &a) const;
+  //! \brief     Projection in the local coordinate system which is defined by the transmitted normal, tangent and binormal
+  //! \param     normal               normal vector (Coord)
+  //! \param     tangent              tangent vector (Coord)
+  //! \param     binormal             binormal vector (Coord)
+  void localProjection(const Coord &normal, const Coord &tangent, const Coord &binormal);
+  //! \brief     Reverse projection in the absolute cartesian coordinate system
+  //! \param     normal               normal vector (Coord)
+  //! \param     tangent              tangent vector (Coord)
+  //! \param     binormal             binormal vector (Coord)
+  void reverseProjection(const Coord &normal, const Coord &tangent, const Coord &binormal);
 
-  void creeVecteur(const Coord &a, const Coord &b);
-  static double produitScalaire(const Coord &v1, const Coord &v2);
-  static Coord produitVectoriel(const Coord &v1, const Coord &v2);
-  //void produitVectoriel(const Coord &v1, const Coord &v2);
-  void changeSigne();
-  void normalise();
-  void afficheInfos() const;
+  //! \brief     Set a vector from the result of the substraction of the vector a from the vector b
+  //! \param     a                    vector (Coord)
+  //! \param     b                    vector (Coord)
+  void setFromSubtractedVectors(const Coord &a, const Coord &b);
+  //! \brief     Return the scalar product bewteen two vectors
+  //! \param     v1                   vector (Coord)
+  //! \param     v2                   vector (Coord)
+  static double scalarProduct(const Coord &v1, const Coord &v2);
+  //! \brief     Return the cross product bewteen two vectors
+  //! \param     v1                   vector (Coord)
+  //! \param     v2                   vector (Coord)
+  static Coord crossProduct(const Coord &v1, const Coord &v2);
+  //! \brief     Change the sign if the present vector
+  void changeSign();
+  //! \brief     Divide the present vector by its norm
+  void normalized();
+  //! \brief     Print the information of the vector
+  void printInfo() const;
 
-  //Calcul le determinant de la matrice forme par les vecteurs v1,v2 et v3
+  //! \brief     Compute the determinant of the matrix formed by the vectors v1, v2 and v3
+  //! \param     v1                   vector (Coord)
+  //! \param     v2                   vector (Coord)
+  //! \param     v3                   vector (Coord)
   static double determinant(const Coord &v1, const Coord &v2, const Coord &v3);
   
-  //Cosinus entre deux vecteurs
+  //! \brief     Compute some sort of cosinus between two vectors
+  //! \param     v1                   vector (Coord)
+  //! \param     v2                   vector (Coord)
   static double cos(const Coord &v1, const Coord &v2);
+  //! \brief     Compute some sort of sinus between two vectors
+  //! \param     v1                   vector (Coord)
+  //! \param     v2                   vector (Coord)
   static Coord sin(const Coord &v1, const Coord &v2);
 
-  //Surcharge operateurs
-  Coord& operator=(const double &scalaire);
-  Coord& operator*= (const double &scalaire);
-  Coord& operator/= (const double &scalaire);
-  Coord operator* (const double &scalaire);
-  Coord operator/ (const double &scalaire);
+  //Operator surcharges
+  Coord& operator=(const double &scalar);
+  Coord& operator*= (const double &scalar);
+  Coord& operator/= (const double &scalar);
+  Coord operator* (const double &scalar);
+  Coord operator/ (const double &scalar);
   Coord& operator+= (const Coord &a);
   Coord& operator-= (const Coord &a);
 
 protected:
-  double m_x;
-  double m_y;
-  double m_z;
+  double m_x;          //! Value in the x-direction
+  double m_y;          //! Value in the y-direction
+  double m_z;          //! Value in the z-direction
 };
 
-//Surcharge operateur externe a la classe car prends deux arguments
-Coord operator* (const double &scalaire, const Coord &a);
+//Extern operator surcharges of the class because they take two arguments
+Coord operator* (const double &scalar, const Coord &a);
 Coord operator+ (const Coord &a, const Coord &b);
 Coord operator- (const Coord &a, const Coord &b);
 

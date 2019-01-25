@@ -30,6 +30,11 @@
 #ifndef RUN_H
 #define RUN_H
 
+//! \file      Run.h
+//! \author    F. Petitpas, K. Schmidmayer
+//! \version   1.0
+//! \date      June 27 2018
+
 class Run;
 
 #include <iostream>
@@ -39,121 +44,121 @@ class Run;
 #include <ctime>
 #include <algorithm>
 #include <sstream>
-#include "Cellule.h"
-#include "Modeles/EntetePhase.h"
-#include "BordDeMaille.h"
+#include "Cell.h"
+#include "Models/HeaderPhase.h"
+#include "CellInterface.h"
 #include "Parallel.h"
-#include "Maillages/EnteteMaillage.h"
-#include "CondLims/EnteteCondLim.h"
-#include "Eos/EnteteEquationEtat.h"
-#include "Modeles/EnteteModele.h"
-#include "Geometries/EnteteDomaineGeometrique.h"
-#include "Ordre2/EnteteLimiteur.h"
-#include "PhysiqueAdditionnelle/EnteteGPA.h"
-#include "PhysiqueAdditionnelle/EntetePhysAdd.h"
+#include "Meshes/HeaderMesh.h"
+#include "BoundConds/HeaderBoundCond.h"
+#include "Eos/HeaderEquationOfState.h"
+#include "Models/HeaderModel.h"
+#include "Geometries/HeaderGeometricalDomain.h"
+#include "Ordre2/HeaderLimiter.h"
+#include "AdditionalPhysics/HeaderQuantitiesAddPhys.h"
+#include "AdditionalPhysics/HeaderAddPhys.h"
 
-#include "EntreesSorties/Entrees.h"
-#include "EntreesSorties/Sorties.h"
-//#include "EntreesSorties/EnteteEntreesSorties.h"
+#include "InputOutput/Input.h"
+#include "InputOutput/Output.h"
+#include "timeStats.h"
 
-//FP//TODO// Mettre La classe globale en classe amie de pas mal d autres classes pour simplifier les appels de methodes
+#include "Relaxations/HeaderRelaxations.h"
 
+//! \class     Run
+//! \brief     Class regrouping all information for a simulation
 class Run
 {
   public:
-    /** Default constructor */
-    Run(std::string nomCasTest, const int &numero);
-    //Run(std::string);
-    /** Default destructor */
+    Run(std::string nameCasTest, const int &number);
     virtual ~Run();
 
-    void initialisation(int argc, char* argv[]);
-    void repriseFichier(int &iteration, double &dt, double &tempsPhysique, clock_t &temps);
+    //! \brief    Initialization of the simulation
+    void initialize(int argc, char* argv[]);
+    //! \brief    Hyperbolic resolution + Relaxations + Source terms integration
+    //! \details  Hyperbolic part is solved using Finite Volume method : \f[ \frac{U^{n+1}_i-U^{n}_i}{\Delta t} =  -\sum_{faces} \vec{F}^*_f \cdot \vec{n}_f \f]
+    void solver();
+    //! \brief    Cleaning simulation
+    //! \details  Memory desallocations
+    void finalize();
+    
+    void resumeSimulation(int &iteration, double &dt, double &tempsPhysique);
 
-    /*! \brief Methode de resolution Hyperbolique + Relaxations + Termes Sources
-     *
-     *  La partie hyperbolique est resolue sous la forme :
-     *  \f[
-     *       \frac{U^{n+1}_i-U^{n}_i}{\Delta t} =  -\sum_{faces} \vec{F}^*_f \cdot \vec{n}_f
-     *  \f]
-     */
-    void resolution();
-    void procedureIntegration(double &dt, int lvl, double &dtMax, int &nbMaillesTotalAMR);
-    void procedureAvancement(double &dt, int &lvl, double &dtMax) const;
-    void resolHyperbolique(double &dt, int &lvl, double &dtMax) const;
-    void resolHyperboliqueO2(double &dt, int &lvl, double &dtMax) const;
-    void resolPhysiquesAdditionelles(double &dt, int &lvl) const;
-    void resolTermesSources(double &dt, int &lvl) const;
-    void resolRelaxations(int &lvl) const;
-    void verifieErreurs() const;
-    void finalise();
-    static void arretApresErreur();
-
-    //Acceseur
-    int getNombrePhases() const;
+    //Accessors
+    int getNumberPhases() const;
 
   private:   
 
-    int m_numTest;                            //!<Numero du cas test
+    //Specific solvers
+    void integrationProcedure(double &dt, int lvl, double &dtMax, int &nbCellsTotalAMR);
+    void advancingProcedure(double &dt, int &lvl, double &dtMax) const;
+    void solveHyperbolic(double &dt, int &lvl, double &dtMax) const;
+    void solveHyperbolicO2(double &dt, int &lvl, double &dtMax) const;
+    void solveAdditionalPhysics(double &dt, int &lvl) const;
+    void solveSourceTerms(double &dt, int &lvl) const;
+    void solveRelaxations(int &lvl) const;
+    void verifyErrors() const;
 
-    //Attribut entrees
-    std::string m_casTest;                     //!<Contient le nom du cas test
-    bool m_controleIterations;
-    int m_nbIte, m_freq;
-    float m_tempsFinal, m_freqTemps;
-    double m_cfl;
-    int m_nombrePhases;
-    int m_nombreTransports;
-    int m_nombreEos;                           //!<Nombre d equations d etat
-    std::string m_ordre;                       //!<Ordre du calcul (ordre1, ordre2)
-    int m_nombrePhysAdd;
-    int m_nombreSources;
+    int m_numTest;                             //!<Number of the simulation
+
+    //Input attributes
+    std::string m_simulationName;              //!<Name of the simulation
+    bool m_controleIterations;                 //!Choice for time control mode (iteration or physical time)
+    int m_nbIte, m_freq;                       //!<Requested number of final time iteration and frequency
+    float m_finalPhysicalTime, m_timeFreq;     //!<Requested final physical time of the simulation and time frequency for output printing
+    double m_cfl;                              //!<CFL criteria (between 0 and 1)
+    int m_numberPhases;                        //!<Number of phases
+    int m_numberEos;                           //!<Number of equations of states
+    int m_numberTransports;                    //!<Number of additional transport variables
+    int m_numberAddPhys;                       //!<Number of additional physical effects
+    int m_numberSources;                       //!<Number of additional source terms
     int m_dimension;                           //!<dimension 1, 2 ou 3
-    int m_evaporation;                         //!<indicateur evaporation 0 ou 1
+    int m_MRF;                                 //!<source term for Moving Reference Frame computation index(in the list of source term)
+    std::string m_order;                       //!<Precision scheme order (firstorder or secondOrder)
 
-    //Pour methode AMR
-    int m_lvlMax;                              //!<Niveau maximal sur l arbre AMR (si m_lvlMax = 0, pas d AMR)
-    int m_nbMaillesTotalAMR;                   //!<Nombre de mailles total maximum durant la simulation
-    std::vector<Cellule *> *m_cellulesLvl;     //!<Tableau de vecteurs contenant les cellules de calcul, un vecteur par niveau.
-    std::vector<BordDeMaille *> *m_bordsLvl;   //!<Tableau de vecteurs contenant les bords de calcul, un vecteur par niveau.
+    //Specific to AMR method
+    int m_lvlMax;                              //!<Maximum AMR level (if 0, then no AMR)
+    int m_nbCellsTotalAMR;                     //!<Number de mailles total maximum durant la simulation
+    std::vector<Cell *> *m_cellsLvl;           //!<Tableau de vecteurs contenant les cells de compute, un vecteur par niveau.
+    std::vector<CellInterface *> *m_boundariesLvl;   //!<Tableau de vecteurs contenant les boundaries de compute, un vecteur par niveau.
 
-    //Attribut geometrie
-    bool m_pretraitementParallele;             //!<variable sur le choix du pretraitement parallele (necessaire si la geometrie n a jamais ete cree)
+    //Geometrical attributes
+    bool m_parallelPreTreatment;               //!<Choice for mesh parallel pre-treatment  (needed for first simulation on a new parallel unstructured geometry)
     
-    //Attribut Calcul
-    Maillage *m_maillage;                      //!<Objet contenant toutes les proprietes geometrique des elements de maillage
-    Modele *m_modele;                          //!<Objet contenant le modele physique
-    Cellule **m_cellules;                      //!<Objet contenant les cellules de calcul (variables des phases, etc.)
-    BordDeMaille **m_bords;                    //!<Tableau des faces entres cellules ou entre une cellule de calcul et une limite
-    Eos **m_eos;                               //!<Tableau des equations d etats
-    std::vector<PhysAdd*> m_physAdd;           //!<Vecteur des physiques additionnelles
-    std::vector<Source*> m_sources;            //!<Vecteur de termes sources
-    Limiteur *m_limiteurGlobal;                //!<Objet contenant le limiteur de pente pour ordre 2 en espace
-    Limiteur *m_limiteurInterface;             //!<Objet contenant le limiteur de pente pour ordre 2 en espace sur l'interface (alpha, transports)
-    std::vector<std::string> m_nomGTR;         //!<Vecteur des noms des grandeurs transportees 
-    std::vector<std::string> m_nomGPA;         //!<Vecteur des noms des grandeurs physiques additionelles 
-    std::vector<std::string> m_nomGPH;         //!<Vecteur des noms des grandeurs des phases
-    double m_dt;
-    double m_tempsPhys;
-    clock_t m_tempsCalc;
-    int m_iteration;
+    //Calcul attributes
+    Mesh *m_mesh;                              //!<Mesh type object: contains all geometrical properties of the simulation
+    Model *m_model;                            //!<Model type object: contains the flow model methods
+    Cell **m_cells;                            //!<Array of computational cells objects: contains physical fluids states
+    CellInterface **m_boundaries;              //!<Array of interfaces objects between cells (or between a cell and a boundary)
+    Eos **m_eos;                               //!<Array of Equations of states: contains fluids EOS parameters
+    std::vector<AddPhys*> m_addPhys;           //!<Vector of Additional physics
+    Symmetry *m_symmetry;                      //!<Specific object for symmetry (cylindrical or spherical) if active
+    Symmetry *m_symmetryAddPhys;               //!<Object containing the parent class of symmetry to trick the corresponding additional physics argument (avoid taking into account symmetry terms multipled times)
+    std::vector<Source*> m_sources;            //!<Vector of source terms
+    Limiter *m_globalLimiter;                  //!<Slope limiter type object for second order in space
+    Limiter *m_interfaceLimiter;               //!<Slope limiter type object for second order in space specific to interface location
+    Limiter *m_globalVolumeFractionLimiter;    //!<Slope limiter type object for second order in space specific to interface advected variables (alpha, transports)
+    Limiter *m_interfaceVolumeFractionLimiter; //!<Slope limiter type object for second order in space specific to interface advected variables (alpha, transports) and to interface location
+    std::vector<std::string> m_nameGTR;        //!<Vector of transport variable names
+    std::vector<std::string> m_nameQPA;        //!<Vector of names of the quantities of additional physics
+    std::vector<std::string> m_nameGPH;        //!<Vector of phasic variables name
+    double m_dt;                               //!<Explicit time step
+    double m_physicalTime;                     //!<Physical time
+    int m_iteration;                           //!<time iteration number
+    int m_resumeSimulation;                    //!<File number for restarting a simulation
 
-    int m_repriseFichier;                      //!<Numero du fichier si reprise de calcul
+    //Input/Output attributes
+	  Input* m_input;						                 //!<Input object
+    Output* m_outPut;                          //!<Main output object
+    std::vector<Output *> m_cuts;              //!<Vector of output objects for cuts
+    std::vector<Output *> m_probes;            //!<Vector of output objects for probes
+    timeStats m_stat;                          //!<Object linked to computational time statistics
+    double *m_pMax, *m_pMaxWall;             //!<Maximal pressure found between each written output and its corresponding coordinate (only for few test case)
 
-    //Attribut entrees / sorties
-	  Entrees* m_entree;						               //!<Entree
-    Sorties* m_sortie;                         //!<Sortie principale
-    std::vector<Sorties *> m_coupes;           //!<Coupes
-
-    friend class Entrees;
-    friend class Sorties;
-    friend class SortiesXML;
-    friend class SortiesGNU;
-    friend class Maillage;
-    
-    //Analyse temps - Les attributs sont stockes en millisecondes (a diviser par CLOCKS_PER_SEC)
-    clock_t m_tempsInitial;
-
+    friend class Input;
+    friend class Output;
+    friend class OutputXML;
+    friend class OutputGNU;
+    friend class OutputProbeGNU;
+    friend class Mesh;
 };
 
 #endif // RUN_H

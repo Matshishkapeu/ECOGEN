@@ -27,17 +27,22 @@
 //  along with ECOGEN (file LICENSE).  
 //  If not, see <http://www.gnu.org/licenses/>.
 
+//! \file      Transport.cpp
+//! \author    K. Schmidmayer
+//! \version   1.0
+//! \date      January 3 2018
+
 #include "Transport.h"
 #include <fstream>
 
 using namespace std;
 using namespace tinyxml2;
 
-Transport* fluxTempTransport;
+Transport* fluxBufferTransport;
 
 //***********************************************************************
 
-Transport::Transport() : m_valeur(0.)
+Transport::Transport() : m_value(0.)
 {}
 
 //***********************************************************************
@@ -46,116 +51,116 @@ Transport::~Transport(){}
 
 //***********************************************************************
 
-void Transport::setValeur(double valeur)
+void Transport::setValue(double value)
 {
-  m_valeur = valeur;
+  m_value = value;
 }
 
 //***********************************************************************
 
-double Transport::getValeur() const
+double Transport::getValue() const
 {
-  return m_valeur;
+  return m_value;
 }
 
 //***********************************************************************
 
-void Transport::resolRiemann(double transportGauche, double transportDroite, double sM)
+void Transport::solveRiemann(double transportLeft, double transportRight, double sM)
 {
-	if (sM > 0.) { m_valeur = transportGauche*sM; }
-	else { m_valeur = transportDroite*sM; }
+	if (sM > 0.) { m_value = transportLeft*sM; }
+	else { m_value = transportRight*sM; }
 }
 
 //***********************************************************************
 
-void Transport::resolRiemannMur()
+void Transport::solveRiemannWall()
 {
-	m_valeur = 0.;
+	m_value = 0.;
 }
 
 //***********************************************************************
 
-void Transport::resolRiemannInj(double transportGauche, double sM, double valeurTransport)
+void Transport::solveRiemannInflow(double transportLeft, double sM, double valueTransport)
 {
-  if (sM > 0.) { m_valeur = transportGauche*sM; }
-  else { m_valeur = valeurTransport*sM; }
+  if (sM > 0.) { m_value = transportLeft*sM; }
+  else { m_value = valueTransport*sM; }
 }
 
 //***********************************************************************
 
-void Transport::resolRiemannRes(double transportGauche, double sM, double valeurTransport)
+void Transport::solveRiemannTank(double transportLeft, double sM, double valueTransport)
 {
-  if (sM > 0.) { m_valeur = transportGauche*sM; }
-  else { m_valeur = valeurTransport*sM; }
+  if (sM > 0.) { m_value = transportLeft*sM; }
+  else { m_value = valueTransport*sM; }
 }
 
 //***********************************************************************
 
-void Transport::resolRiemannSortie(double transportGauche, double sM, double valeurTransport)
+void Transport::solveRiemannOutflow(double transportLeft, double sM, double valueTransport)
 {
-	if (sM > 0.) { m_valeur = transportGauche*sM; }
-  else { m_valeur = valeurTransport*sM; }
+	if (sM > 0.) { m_value = transportLeft*sM; }
+  else { m_value = valueTransport*sM; }
 }
 
 //***********************************************************************
 
-void Transport::ajoutFlux(double coefA, const int num)
+void Transport::addFlux(double coefA, const int num)
 {
-  m_valeur += coefA*fluxTempTransport[num].m_valeur;
+  m_value += coefA*fluxBufferTransport[num].m_value;
 }
 
 //***********************************************************************
 
-void Transport::retireFlux(double coefA, const int num)
+void Transport::subtractFlux(double coefA, const int num)
 {
-  m_valeur -= coefA*fluxTempTransport[num].m_valeur;
+  m_value -= coefA* fluxBufferTransport[num].m_value;
 }
 
 //***********************************************************************
 
-void Transport::ajoutNonCons(double coefA, double transport, const double sM)
+void Transport::addNonCons(double coefA, double transport, const double sM)
 {
-  m_valeur += -coefA*transport*sM;
+  m_value += -coefA*transport*sM;
 }
 
 //***********************************************************************
 
-void Transport::retireNonCons(double coefA, double transport, const double sM)
+void Transport::subtractNonCons(double coefA, double transport, const double sM)
 {
-  m_valeur -= -coefA*transport*sM;
+  m_value -= -coefA*transport*sM;
 }
 
 //***********************************************************************
 
-void Transport::multiplie(double scalaire) 
+void Transport::multiply(double scalar) 
 {
-  m_valeur *= scalaire;
+  m_value *= scalar;
 }
 
 //***********************************************************************
 
-void Transport::ajoute(double scalaire)
+void Transport::add(double scalar)
 {
-  m_valeur += scalaire;
+  m_value += scalar;
 }
 
 //***************************************************************************
 
-void Transport::changeSigne()
+void Transport::changeSign()
 {
-  m_valeur = -m_valeur;
+  m_value = -m_value;
 }
 
 //***************************************************************************
 
-void Transport::calculPentesTransport(const double valeurGauche, const double valeurDroite, const double &distance)
+void Transport::computeSlopeTransport(const double valueLeft, const double valueRight, const double &distance)
 {
-  m_valeur = (valeurDroite - valeurGauche) / distance;
+  m_value = (valueRight - valueLeft) / distance;
 }
 
 //***********************************************************************
 
-void Transport::extrapole(const double &pente, const double &distance)
+void Transport::extrapolate(const double &slope, const double &distance)
 {
-  m_valeur += pente * distance;
+  m_value += slope * distance;
 }

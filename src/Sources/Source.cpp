@@ -27,6 +27,11 @@
 //  along with ECOGEN (file LICENSE).  
 //  If not, see <http://www.gnu.org/licenses/>.
 
+//! \file      Source.cpp
+//! \author    F. Petitpas, K. Schmidmayer
+//! \version   1.0
+//! \date      January 10 2018
+
 #include "Source.h"
 
 using namespace std;
@@ -38,16 +43,5 @@ Source::Source(){}
 //***********************************************************************
 
 Source::~Source(){}
-
-//***********************************************************************
-
-void Source::integreTermeSource(Cellule *cell, const int &nombrePhases, const double &dt)
-{
-  //Integration des termes sources sur variables conservatives
-  this->prepareSource(cell, nombrePhases);
-  cell->construitCons(nombrePhases);
-  cell->getCons()->integreTermeSource(cell, dt, nombrePhases);
-  cell->construitPrim(nombrePhases);
-}
 
 //***********************************************************************

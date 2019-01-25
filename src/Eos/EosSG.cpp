@@ -27,7 +27,13 @@
 //  along with ECOGEN (file LICENSE).  
 //  If not, see <http://www.gnu.org/licenses/>.
 
+//! \file      EosSG.cpp
+//! \author    F. Petitpas, K. Schmidmayer, E. Daniel
+//! \version   1.0
+//! \date      May 14 2018
+
 #include <cmath>
+#include <algorithm>
 #include <cstring>
 #include "EosSG.h"
 
@@ -39,27 +45,15 @@ EosSG::EosSG(){}
 
 //***********************************************************************
 
-EosSG::EosSG(vector<string> &nomParametresEos, int &numero) :
-    Eos(numero)
+EosSG::EosSG(vector<string> &nameParameterEos, int &number) :
+    Eos(number)
 {
-  nomParametresEos.push_back("gamma");
-  nomParametresEos.push_back("pInf");
-  nomParametresEos.push_back("cv");
-  nomParametresEos.push_back("energieRef");
-  nomParametresEos.push_back("entropieRef");
+  nameParameterEos.push_back("gamma");
+  nameParameterEos.push_back("pInf");
+  nameParameterEos.push_back("cv");
+  nameParameterEos.push_back("energyRef");
+  nameParameterEos.push_back("entropyRef");
 }
-
-//***********************************************************************
-
-//Constructeur StiffenedGas ameliore
-EosSG::EosSG(string nom, double gamma, double pInf, double cv, double eRef, int &numero) :
-    Eos(nom, numero),
-    m_gamma(gamma),
-    m_pInf(pInf),
-    m_cv(cv),
-    m_eRef(eRef),
-    m_sRef(0.)
-{}
 
 //***********************************************************************
 
@@ -68,10 +62,10 @@ EosSG::~EosSG(){}
 //***********************************************************************
 
 //Mod
-void EosSG::renvoiInfo(double *&data) const
+void EosSG::sendInfo(double *&data) const
 {
-	int nombre = 4;
-	data = new double[nombre];
+	int number = 4;
+	data = new double[number];
 
 	data[0] = m_gamma;
 	data[1] = m_pInf;
@@ -81,157 +75,182 @@ void EosSG::renvoiInfo(double *&data) const
 
 //***********************************************************************
 
-void EosSG::attributParametresEos(string nom, vector<double> parametresEos)
+void EosSG::assignParametersEos(string name, vector<double> parametersEos)
 {
-  m_nom = nom;
-  assert(parametresEos.size() == 5);
-  m_gamma = parametresEos[0];
-  m_pInf  = parametresEos[1];
-  m_cv    = parametresEos[2];
-  m_eRef  = parametresEos[3];
-  m_sRef  = parametresEos[4];
+  m_name = name;
+  assert(parametersEos.size() == 5);
+  m_gamma = parametersEos[0];
+  m_pInf  = parametersEos[1];
+  m_cv    = parametersEos[2];
+  m_eRef  = parametersEos[3];
+  m_sRef  = parametersEos[4];
 }
 
 //***********************************************************************
 
-//Methodes constantes
-//*******************
-double EosSG::calculTemperature(const double &densite, const double &pression) const
+//Constant methods
+//****************
+double EosSG::computeTemperature(const double &density, const double &pressure) const
 {
-  return (pression+m_pInf)/(m_gamma-1.)/densite/m_cv;
+  return (pressure+m_pInf)/(m_gamma-1.)/max(density, epsilon)/m_cv;
 }
 
 //***********************************************************************
 
-double EosSG::calculEnergie(const double &densite, const double &pression) const
+double EosSG::computeEnergy(const double &density, const double &pressure) const
 {
-  return (pression+m_gamma*m_pInf)/(m_gamma-1.)/densite + m_eRef;
+  return (pressure+m_gamma*m_pInf)/(m_gamma-1.)/max(density, epsilon) + m_eRef;
 }
 
 //***********************************************************************
 
-double EosSG::calculPression(const double &densite, const double &energie) const
+double EosSG::computePressure(const double &density, const double &energy) const
 {
-  return (m_gamma-1.)*densite*(energie-m_eRef)-m_gamma*m_pInf;
+  return (m_gamma-1.)*density*(energy-m_eRef)-m_gamma*m_pInf;
 }
 
 //***********************************************************************
 
-double EosSG::calculVitesseSon(const double &densite, const double &pression) const
+double EosSG::computeDensity(const double &pressure, const double &temperature) const
 {
-  return sqrt(m_gamma*(pression+m_pInf)/densite);
+  return  (pressure + m_pInf)/max(((m_gamma - 1.)*m_cv*temperature), epsilon);
 }
 
 //***********************************************************************
 
-double EosSG::calculPressionIsentrope(const double &pressionInitiale, const double &densiteInitiale, const double &densiteFinale) const
+double EosSG::computeSoundSpeed(const double &density, const double &pressure) const
 {
-  return (pressionInitiale+m_pInf)*pow(densiteFinale/densiteInitiale,m_gamma)-m_pInf;
+  return sqrt(m_gamma*(pressure+m_pInf)/max(density, epsilon));
 }
 
 //***********************************************************************
 
-double EosSG::calculPressionHugoniot(const double &pressionInitiale, const double &densiteInitiale, const double &densiteFinale) const
+double EosSG::computeEntropy(const double &temperature, const double &pressure) const
 {
-  return (pressionInitiale+m_pInf)*((m_gamma+1.)*densiteFinale-(m_gamma-1.)*densiteInitiale)/((m_gamma+1.)*densiteInitiale-(m_gamma-1.)*densiteFinale)-m_pInf;
+  return m_cv*log(pow(temperature, m_gamma) / max(pow(pressure + m_pInf, m_gamma - 1.), epsilon)) + m_sRef;
 }
 
 //***********************************************************************
 
-double EosSG::calculDensiteIsentrope(const double &pressionInitiale, const double &densiteInitiale, const double &pressionFinale, double *drhodp) const
+double EosSG::computePressureIsentropic(const double &initialPressure, const double &initialDensity, const double &finalDensity) const
 {
-  double densiteFinale(densiteInitiale*pow((pressionFinale+m_pInf)/(pressionInitiale+m_pInf),1./m_gamma));
-  if (drhodp != NULL) *drhodp = densiteFinale/(m_gamma*(pressionFinale+m_pInf));
-  return densiteFinale;
+  return (initialPressure+m_pInf)*pow(finalDensity/max(initialDensity, epsilon),m_gamma)-m_pInf;
 }
 
 //***********************************************************************
 
-double EosSG::calculDensiteHugoniot(const double &pressionInitiale, const double &densiteInitiale, const double &pressionFinale, double *drhodp) const
+double EosSG::computePressureHugoniot(const double &initialPressure, const double &initialDensity, const double &finalDensity) const
 {
-  double num((m_gamma+1.)*(pressionFinale+m_pInf)+ (m_gamma - 1.)*(pressionInitiale + m_pInf));
-  double denom((m_gamma - 1.)*(pressionFinale + m_pInf) + (m_gamma + 1.)*(pressionInitiale + m_pInf));
-  double densiteFinale(densiteInitiale*num/denom);
-  if (drhodp != NULL) *drhodp = densiteInitiale*2.*(m_gamma+1.)*(pressionInitiale+m_pInf)/(denom*denom);
-  return densiteFinale;
+  return (initialPressure+m_pInf)*((m_gamma+1.)*finalDensity-(m_gamma-1.)*initialDensity)/max(((m_gamma+1.)*initialDensity-(m_gamma-1.)*finalDensity), epsilon) -m_pInf;
 }
 
 //***********************************************************************
 
-double EosSG::calculEnthalpieIsentrope(const double &pressionInitiale, const double &densiteInitiale, const double &pressionFinale, double *dhdp) const
+double EosSG::computeDensityIsentropic(const double &initialPressure, const double &initialDensity, const double &finalPressure, double *drhodp) const
 {
-  double rhoFinale, drho;
-  rhoFinale = this->calculDensiteIsentrope(pressionInitiale, densiteInitiale, pressionFinale, &drho);
-  double enthalpieFinale(m_gamma*(pressionFinale+m_pInf) / (m_gamma - 1.) / rhoFinale + m_eRef);
-  if (dhdp != NULL) *dhdp = m_gamma / (m_gamma - 1.)*(rhoFinale - (pressionFinale+m_pInf)*drho) / (rhoFinale*rhoFinale);
-  return enthalpieFinale;
+  double finalDensity(initialDensity*pow((finalPressure+m_pInf)/max((initialPressure+m_pInf), epsilon),1./m_gamma));
+  if (drhodp != NULL) *drhodp = finalDensity/max((m_gamma*(finalPressure+m_pInf)), epsilon);
+  return finalDensity;
 }
 
 //***********************************************************************
 
-double EosSG::calculDensiteSaturation(const double &pression, const double &Tsat, const double &dTsatdP, double *drhodp) const
+double EosSG::computeDensityHugoniot(const double &initialPressure, const double &initialDensity, const double &finalPressure, double *drhodp) const
+{
+  double num((m_gamma+1.)*(finalPressure+m_pInf)+ (m_gamma - 1.)*(initialPressure + m_pInf));
+  double denom((m_gamma - 1.)*(finalPressure + m_pInf) + (m_gamma + 1.)*(initialPressure + m_pInf));
+  double finalDensity(initialDensity*num/max(denom, epsilon));
+  if (drhodp != NULL) *drhodp = initialDensity*4.*(m_gamma)*(initialPressure+m_pInf)/max((denom*denom), epsilon);
+  return finalDensity;
+}
+
+//***********************************************************************
+
+double EosSG::computeDensityPfinal(const double &initialPressure, const double &initialDensity, const double &finalPressure, double *drhodp) const
+{
+  double num((m_gamma)*(finalPressure + m_pInf));
+  double denom(num + initialPressure - finalPressure);
+  double finalDensity(initialDensity*num/max(denom, epsilon));
+  if (drhodp != NULL) *drhodp = initialDensity*m_gamma*(initialPressure + m_pInf) / max((denom*denom), epsilon);
+  return finalDensity;
+}
+
+//***********************************************************************
+
+double EosSG::computeEnthalpyIsentropic(const double &initialPressure, const double &initialDensity, const double &finalPressure, double *dhdp) const
+{
+  double finalRho, drho;
+  finalRho = this->computeDensityIsentropic(initialPressure, initialDensity, finalPressure, &drho);
+  double finalEnthalpy(m_gamma*(finalPressure+m_pInf) / (m_gamma - 1.) / max(finalRho, epsilon) + m_eRef);
+  if (dhdp != NULL) *dhdp = m_gamma / (m_gamma - 1.)*(finalRho - (finalPressure+m_pInf)*drho) / max((finalRho*finalRho), epsilon);
+  return finalEnthalpy;
+}
+
+//***********************************************************************
+
+double EosSG::computeDensitySaturation(const double &pressure, const double &Tsat, const double &dTsatdP, double *drhodp) const
 {
   double rho;
   if (drhodp != NULL) {
-    *drhodp = (m_gamma - 1.)*m_cv*Tsat - (pression + m_pInf)*(m_gamma - 1.)*m_cv*dTsatdP;
-    *drhodp /= (((m_gamma - 1.)*m_cv*Tsat)*((m_gamma - 1.)*m_cv*Tsat));
+    *drhodp = (m_gamma - 1.)*m_cv*Tsat - (pressure + m_pInf)*(m_gamma - 1.)*m_cv*dTsatdP;
+    *drhodp /= max((((m_gamma - 1.)*m_cv*Tsat)*((m_gamma - 1.)*m_cv*Tsat)), epsilon);
   }
-  rho = (pression + m_pInf)/((m_gamma - 1.)*m_cv*Tsat);
+  rho = (pressure + m_pInf)/max(((m_gamma - 1.)*m_cv*Tsat), epsilon);
   return rho;
 }
 
 //***********************************************************************
 
-double EosSG::calculRhoEnergieSaturation(const double &pression, const double &rho, const double &drhodp, double *drhoedp) const
+double EosSG::computeDensityEnergySaturation(const double &pressure, const double &rho, const double &drhodp, double *drhoedp) const
 {
   double rhoe;
   if (drhoedp != NULL) { *drhoedp = 1./(m_gamma-1.)+drhodp*m_eRef; }
-  rhoe = (pression + m_gamma*m_pInf) / (m_gamma - 1.) + rho*m_eRef;
+  rhoe = (pressure + m_gamma*m_pInf) / (m_gamma - 1.) + rho*m_eRef;
   return rhoe;
 }
 
 //***********************************************************************
 
-void EosSG::renvoiSpecialEosMelange(double &gamPinfSurGamMoinsUn, double &eRef, double &unSurGamMoinsUn) const
+void EosSG::sendSpecialMixtureEos(double &gamPinfOverGamMinusOne, double &eRef, double &oneOverGamMinusOne) const
 {
-  gamPinfSurGamMoinsUn = m_gamma*m_pInf/(m_gamma-1.);
+  gamPinfOverGamMinusOne = m_gamma*m_pInf/(m_gamma-1.);
   eRef = m_eRef;
-  unSurGamMoinsUn = 1. / (m_gamma - 1.);
+  oneOverGamMinusOne = 1. / (m_gamma - 1.);
 }
 
 //***********************************************************************
 
-double EosSG::vfpfh(const double &pression, const double &enthalpie) const
+double EosSG::vfpfh(const double &pressure, const double &enthalpy) const
 {
-  return (m_gamma - 1.)*(enthalpie-m_eRef) / (m_gamma*(pression+m_pInf));
+  return (m_gamma - 1.)*(enthalpy-m_eRef) / max((m_gamma*(pressure+m_pInf)), epsilon);
 }
 
 //***********************************************************************
 
-double EosSG::dvdpch(const double &pression, const double &enthalpie) const
+double EosSG::dvdpch(const double &pressure, const double &enthalpy) const
 {
-  return (1. - m_gamma) / m_gamma * (enthalpie - m_eRef) / ((pression + m_pInf)*(pression + m_pInf));
+  return (1. - m_gamma) / m_gamma * (enthalpy - m_eRef) / max(((pressure + m_pInf)*(pressure + m_pInf)), epsilon);
 }
 
 //***********************************************************************
 
-double EosSG::dvdhcp(const double &pression, const double &enthalpie) const
+double EosSG::dvdhcp(const double &pressure, const double &enthalpy) const
 {
-  return (m_gamma - 1.) / m_gamma / (pression + m_pInf);
+  return (m_gamma - 1.) / m_gamma / max((pressure + m_pInf), epsilon);
 }
 
 //***********************************************************************
 
-void EosSG::verifiePression(const double &pression) const
+void EosSG::verifyPressure(const double &pressure, const std::string &message) const
 {
-  if (pression <= -(1. - 1.e-8)*m_pInf + 1.e-8) erreurs.push_back(Erreurs("pression trop faible dans EosSG"));
+  if (pressure <= -(1. - 1.e-15)*m_pInf + 1.e-15) errors.push_back(Errors(message + " : too low pressure in EosSG"));
 }
 
 //***********************************************************************
 
-void EosSG::verifieEtCorrigePression(double &pression) const
+void EosSG::verifyAndModifyPressure(double &pressure) const
 {
-  if (pression <= -(1. - 1.e-8)*m_pInf + 1.e-8) pression = -(1. - 1.e-8)*m_pInf + 1.e-8;
+  if (pressure <= -(1. - 1.e-15)*m_pInf + 1.e-15) pressure = -(1. - 1.e-15)*m_pInf + 1.e-15;
 }
 
 //***********************************************************************

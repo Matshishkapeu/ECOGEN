@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<maillage>
-	<type structure="nonStructure"/>
-	<maillageNonStructure>
-		<fichier nom="./tuyeres/tuyere2D.msh"/>
-		<modeParallele pretraitementGMSH="true"/> 
-	</maillageNonStructure>
-</maillage>

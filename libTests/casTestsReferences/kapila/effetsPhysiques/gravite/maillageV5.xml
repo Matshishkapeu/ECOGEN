@@ -1,8 +1,0 @@
-<?xml version = "1.0" encoding = "UTF-8" standalone = "yes"?>
-<maillage>
-	<type structure="cartesien"/>
-	<maillageCartesien>
-		<dimensions x="0.75" y="0.75" z="0.75"/>
-		<nombreMailles x="30" y ="30" z="1"/>
-	</maillageCartesien>
-</maillage>
